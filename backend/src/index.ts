@@ -3,6 +3,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { healthCheck } from './db';
+import { config } from './config';
+import authRoutes from './routes/auth';
+import childRoutes from './routes/child';
 
 const app = express();
 
@@ -23,7 +26,10 @@ app.get('/health/db', async (_req, res) => {
   res.json({ status: 'ok', db: 'healthy' });
 });
 
-const port = process.env.PORT || 4000;
+app.use('/auth', authRoutes);
+app.use('/child', childRoutes);
+
+const port = config.port;
 
 app.listen(port, () => {
   // Basic startup log

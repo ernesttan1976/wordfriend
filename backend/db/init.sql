@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS children (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Ensure at most one child per user (MVP constraint)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_children_user
+  ON children (user_id);
+
 -- Word lists created per child
 CREATE TABLE IF NOT EXISTS word_lists (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
