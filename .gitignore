@@ -40,3 +40,4 @@ ios/Flutter/Flutter.podspec
 ios/Flutter/App.framework
 ios/Flutter/Generated.xcconfig
 ios/Flutter/ephemeral/
+client_secret*.*
