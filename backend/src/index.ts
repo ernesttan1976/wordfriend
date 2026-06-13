@@ -7,6 +7,7 @@ import { config } from './config';
 import authRoutes from './routes/auth';
 import childRoutes from './routes/child';
 import wordListsRoutes from './routes/wordLists';
+import quizRoutes from './routes/quiz';
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.get('/health/db', async (_req, res) => {
 app.use('/auth', authRoutes);
 app.use('/child', childRoutes);
 app.use('/word-lists', wordListsRoutes);
+app.use('/', quizRoutes);
 
 const port = config.port;
 

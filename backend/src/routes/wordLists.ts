@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import OpenAI from 'openai';
 import { pool } from '../db';
 import { authMiddleware, AuthRequest } from '../auth/jwt';
+import { config } from '../config';
 
 const router = Router();
 
@@ -85,6 +87,197 @@ router.post('/', async (req: AuthRequest, res) => {
   );
 
   res.status(201).json(insertResult.rows[0]);
+});
+
+interface GenerateListBody {
+  prompt: string;
+  size?: number;
+  name?: string;
+}
+
+interface GeneratedWord {
+  spelling: string;
+  phonics_pattern?: string | null;
+}
+
+function sanitizeGeneratedWord(raw: GeneratedWord): GeneratedWord | null {
+  const spelling = (raw.spelling || '').trim();
+  if (!spelling) return null;
+
+  // Only keep reasonable alphabetic words; avoid numbers/symbols.
+  if (!/^[A-Za-z]{2,24}$/.test(spelling)) return null;
+
+  const phonicsPattern = raw.phonics_pattern?.trim() || null;
+  return { spelling, phonics_pattern: phonicsPattern };
+}
+
+// Generate a new AI-powered list using OpenAI GPT-5.1
+router.post('/generate', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  if (!config.openaiApiKey) {
+    res.status(500).json({ error: 'AI service is not configured' });
+    return;
+  }
+
+  const { prompt, size, name } = req.body as GenerateListBody;
+
+  if (!prompt || !prompt.trim()) {
+    res.status(400).json({ error: 'prompt is required' });
+    return;
+  }
+
+  const limit = Math.max(5, Math.min(50, size ?? 10));
+
+  const childResult = await pool.query(
+    'SELECT id, age FROM children WHERE user_id = $1 LIMIT 1',
+    [userId],
+  );
+
+  if (childResult.rows.length === 0) {
+    res.status(404).json({ error: 'Child profile not found' });
+    return;
+  }
+
+  const childId: string = childResult.rows[0].id;
+  const age: number | null = childResult.rows[0].age ?? null;
+
+  const openai = new OpenAI({ apiKey: config.openaiApiKey });
+
+  const systemPrompt =
+    'You help a child learn English spelling (British English). ' +
+    'Generate a list of single English words that are age-appropriate, family-friendly, and match the requested theme or pattern. ' +
+    'Focus on words that are useful for practice and avoid offensive, adult, or sensitive content. ' +
+    'Respond ONLY with JSON in the format {"words":[{"spelling":"...","phonics_pattern":"..."}, ...]}. No extra text.';
+
+  const userPromptParts = [
+    `Prompt: ${prompt.trim()}`,
+    `Target age: ${age ?? 'unknown (assume around 10-11)'}`,
+    `Number of words: ${limit}`,
+    'Prefer words that will help a dyslexic 9–12 year old connect sounds to letters.',
+  ];
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: config.openaiModel,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPromptParts.join('\n') },
+      ],
+      temperature: 0.7,
+      max_tokens: 800,
+      response_format: { type: 'json_object' },
+    });
+
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Empty response from OpenAI');
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (err) {
+      console.error('Failed to parse OpenAI JSON', err, content);
+      throw new Error('AI returned invalid JSON');
+    }
+
+    const wordsRaw = (parsed as { words?: GeneratedWord[] }).words;
+    if (!Array.isArray(wordsRaw) || wordsRaw.length === 0) {
+      throw new Error('AI returned no words');
+    }
+
+    const sanitized = wordsRaw
+      .map(sanitizeGeneratedWord)
+      .filter((w): w is GeneratedWord => w !== null)
+      .slice(0, limit);
+
+    if (sanitized.length === 0) {
+      throw new Error('No valid words after sanitization');
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const listNameBase = name?.trim() || prompt.trim();
+      const listName = listNameBase.length > 80 ? `${listNameBase.slice(0, 77)}...` : listNameBase;
+
+      const listInsert = await client.query(
+        `INSERT INTO word_lists (child_id, name, source, prompt)
+         VALUES ($1, $2, 'ai', $3)
+         RETURNING id, name, source, prompt, created_at, updated_at`,
+        [childId, listName, prompt.trim()],
+      );
+
+      const list = listInsert.rows[0];
+      const listId: string = list.id;
+
+      let position = 0;
+      const added: Array<{ id: string; spelling: string; phonicsPattern: string | null; position: number }> = [];
+
+      for (const word of sanitized) {
+        const spelling = word.spelling;
+        const phonicsPattern = word.phonics_pattern ?? null;
+
+        const existingWord = await client.query(
+          'SELECT id, phonics_pattern FROM words WHERE spelling = $1 LIMIT 1',
+          [spelling],
+        );
+
+        let wordId: string;
+
+        if (existingWord.rows.length === 0) {
+          const insertWord = await client.query(
+            'INSERT INTO words (spelling, phonics_pattern) VALUES ($1, $2) RETURNING id',
+            [spelling, phonicsPattern],
+          );
+          wordId = insertWord.rows[0].id;
+        } else {
+          wordId = existingWord.rows[0].id;
+
+          if (!existingWord.rows[0].phonics_pattern && phonicsPattern) {
+            await client.query(
+              'UPDATE words SET phonics_pattern = $1 WHERE id = $2',
+              [phonicsPattern, wordId],
+            );
+          }
+        }
+
+        position += 1;
+
+        await client.query(
+          `INSERT INTO word_list_items (word_list_id, word_id, position)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (word_list_id, word_id) DO NOTHING`,
+          [listId, wordId, position],
+        );
+
+        added.push({ id: wordId, spelling, phonicsPattern, position });
+      }
+
+      await client.query('COMMIT');
+
+      res.status(201).json({
+        list,
+        words: added,
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error('Failed to save generated word list', err);
+      res.status(500).json({ error: 'Failed to save generated word list' });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('AI generation failed', err);
+    res.status(500).json({ error: 'Failed to generate word list' });
+  }
 });
 
 // Get a specific word list and its words
