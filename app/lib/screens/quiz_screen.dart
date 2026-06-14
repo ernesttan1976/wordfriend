@@ -122,8 +122,8 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'Imagine the app has just spoken the word.
-Type what you heard.',
+              'Imagine the app has just spoken the word.\n'
+              'Type what you heard.',
             ),
             const SizedBox(height: 16),
             TextField(
