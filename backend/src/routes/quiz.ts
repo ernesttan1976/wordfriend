@@ -3,7 +3,7 @@ import { pool } from '../db';
 import { authMiddleware, AuthRequest } from '../auth/jwt';
 import { updateAfterAttempt } from '../spacedRepetition';
 import OpenAI from 'openai';
-import config from '../config';
+import { config } from '../config';
 
 const router = Router();
 
