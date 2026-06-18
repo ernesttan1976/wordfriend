@@ -163,6 +163,83 @@ router.post('/quiz-sessions', async (req: AuthRequest, res) => {
   });
 });
 
+// Create a quiz session from an explicit set of word IDs (e.g. random multi-list)
+router.post('/quiz-sessions/from-words', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { mode, wordIds } = req.body as {
+    mode?: QuizMode;
+    wordIds?: string[];
+  };
+
+  if (mode !== 'listen_type' && mode !== 'read_say') {
+    res.status(400).json({ error: "mode must be 'listen_type' or 'read_say'" });
+    return;
+  }
+
+  if (!Array.isArray(wordIds) || wordIds.length === 0) {
+    res.status(400).json({ error: 'wordIds array is required' });
+    return;
+  }
+
+  // Get child for current user
+  const childResult = await pool.query(
+    'SELECT id FROM children WHERE user_id = $1 LIMIT 1',
+    [userId],
+  );
+
+  if (childResult.rows.length === 0) {
+    res.status(404).json({ error: 'Child profile not found' });
+    return;
+  }
+
+  const childId: string = childResult.rows[0].id;
+
+  // Ensure all words belong to at least one list owned by this child
+  const wordsCheck = await pool.query(
+    `SELECT DISTINCT w.id, w.spelling, w.phonics_pattern
+       FROM words w
+       JOIN word_list_items wli ON wli.word_id = w.id
+       JOIN word_lists wl ON wli.word_list_id = wl.id
+      WHERE w.id = ANY($1)
+        AND wl.child_id = $2`,
+    [wordIds, childId],
+  );
+
+  if (wordsCheck.rows.length === 0) {
+    res.status(404).json({ error: 'No valid words found for this user' });
+    return;
+  }
+
+  const selectedWords = wordsCheck.rows;
+
+  const sessionResult = await pool.query(
+    `INSERT INTO quiz_sessions (child_id, mode, word_list_id)
+     VALUES ($1, $2, NULL)
+     RETURNING id, child_id, mode, word_list_id, started_at, completed_at`,
+    [childId, mode],
+  );
+
+  const session = sessionResult.rows[0];
+
+  res.status(201).json({
+    id: session.id,
+    mode: session.mode,
+    wordListId: null,
+    startedAt: session.started_at,
+    completedAt: session.completed_at,
+    words: selectedWords.map((w) => ({
+      id: w.id,
+      spelling: w.spelling,
+      phonics_pattern: w.phonics_pattern,
+    })),
+  });
+});
+
 interface RecordAttemptBody {
   wordId: string;
   typedAnswer?: string;
