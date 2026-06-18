@@ -34,6 +34,50 @@ class _WordListsScreenState extends State<WordListsScreen> {
     });
   }
 
+  Future<void> _deleteList(WordListSummary list) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete list'),
+        content: Text('Delete "${list.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final api = context.read<SessionState>().api;
+    await api.deleteWordList(list.id);
+    await _refresh();
+  }
+
+  Future<void> _quickQuiz(List<WordListSummary> lists) async {
+    if (lists.isEmpty) return;
+    final api = context.read<SessionState>().api;
+    try {
+      final session = await api.createQuizSession(
+        wordListId: lists.first.id,
+        mode: 'listen_type',
+        size: 10,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => QuizScreen(session: session),
+        ),
+      );
+    } catch (_) {}
+  }
+
   Future<void> _showGenerateDialog() async {
     final promptController = TextEditingController();
     final sizeController = TextEditingController(text: '10');
@@ -123,6 +167,14 @@ class _WordListsScreenState extends State<WordListsScreen> {
         title: const Text('Word lists'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.play_arrow),
+            tooltip: 'Quick quiz (10)',
+            onPressed: () async {
+              final lists = await _listsFuture;
+              await _quickQuiz(lists);
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.child_care),
             onPressed: () async {
               await Navigator.of(context).push(
@@ -185,6 +237,19 @@ class _WordListsScreenState extends State<WordListsScreen> {
                       ),
                     );
                   },
+                  trailing: PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'delete') {
+                        await _deleteList(list);
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete'),
+                      ),
+                    ],
+                  ),
                 );
               },
             );
