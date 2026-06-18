@@ -372,4 +372,58 @@ router.post('/quiz-sessions/:id/attempts', async (req: AuthRequest, res) => {
   }
 });
 
+// Aggregate quiz statistics for current user's child
+router.get('/stats', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const childResult = await pool.query(
+    'SELECT id FROM children WHERE user_id = $1 LIMIT 1',
+    [userId],
+  );
+
+  if (childResult.rows.length === 0) {
+    res.status(404).json({ error: 'Child profile not found' });
+    return;
+  }
+
+  const childId: string = childResult.rows[0].id;
+
+  const totalsResult = await pool.query(
+    `SELECT COUNT(*)::int AS total,
+            COALESCE(SUM(CASE WHEN qa.is_correct THEN 1 ELSE 0 END),0)::int AS correct
+       FROM quiz_attempts qa
+       JOIN quiz_sessions qs ON qa.quiz_session_id = qs.id
+      WHERE qs.child_id = $1`,
+    [childId],
+  );
+
+  const total = totalsResult.rows[0].total as number;
+  const correct = totalsResult.rows[0].correct as number;
+  const incorrect = total - correct;
+  const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  const last7DaysResult = await pool.query(
+    `SELECT COUNT(*)::int AS total
+       FROM quiz_attempts qa
+       JOIN quiz_sessions qs ON qa.quiz_session_id = qs.id
+      WHERE qs.child_id = $1
+        AND qa.created_at >= NOW() - INTERVAL '7 days'`,
+    [childId],
+  );
+
+  const last7DaysAttempts = last7DaysResult.rows[0].total as number;
+
+  res.json({
+    totalAttempts: total,
+    correct,
+    incorrect,
+    accuracy,
+    last7DaysAttempts,
+  });
+});
+
 export default router;
