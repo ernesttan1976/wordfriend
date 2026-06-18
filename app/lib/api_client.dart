@@ -232,8 +232,13 @@ class ApiClient {
 
   Future<List<String>> getTtsVoices() async {
     final resp = await _client.get(_uri('/tts/voices'), headers: _headers());
-    final list = await _handleJsonListResponse(resp);
-    return list.map((e) => e.toString()).toList();
+    final json = await _handleJsonResponse(resp);
+
+    final voices = (json['voices'] as List<dynamic>? ?? []);
+    // Backend returns objects with { id, label }; use id for selection
+    return voices
+        .map((e) => (e as Map<String, dynamic>)['id'] as String)
+        .toList();
   }
 
   Future<ChildProfile> updateChildTtsSettings({
