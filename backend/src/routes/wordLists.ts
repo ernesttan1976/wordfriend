@@ -631,12 +631,13 @@ router.post('/random-from-lists', async (req: AuthRequest, res) => {
   }
 
   const wordsResult = await pool.query(
-    `SELECT DISTINCT w.id,
+    `SELECT w.id,
             w.spelling,
             w.phonics_pattern
        FROM word_list_items wli
        JOIN words w ON wli.word_id = w.id
       WHERE wli.word_list_id = ANY($1)
+      GROUP BY w.id, w.spelling, w.phonics_pattern
       ORDER BY random()
       LIMIT $2`,
     [listIds, limit],
