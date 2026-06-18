@@ -245,6 +245,23 @@ class ApiClient {
     return QuizSession.fromJson(json);
   }
 
+  Future<QuizSession> createQuizSessionFromWords({
+    required String mode, // 'listen_type' | 'read_say'
+    required List<String> wordIds,
+  }) async {
+    final resp = await _client.post(
+      _uri('/quiz-sessions/from-words'),
+      headers: _headers(),
+      body: jsonEncode(<String, dynamic>{
+        'mode': mode,
+        'wordIds': wordIds,
+      }),
+    );
+
+    final json = await _handleJsonResponse(resp);
+    return QuizSession.fromJson(json);
+  }
+
   Future<QuizAttemptResult> submitQuizAttempt({
     required String sessionId,
     required String wordId,

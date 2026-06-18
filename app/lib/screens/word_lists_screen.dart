@@ -63,20 +63,86 @@ class _WordListsScreenState extends State<WordListsScreen> {
 
   Future<void> _quickQuiz(List<WordListSummary> lists) async {
     if (lists.isEmpty) return;
+
+    final selected = <String>{};
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select lists for quiz'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: lists
+                  .map(
+                    (l) => StatefulBuilder(
+                      builder: (context, setStateDialog) {
+                        final isChecked = selected.contains(l.id);
+                        return CheckboxListTile(
+                          value: isChecked,
+                          title: Text(l.name),
+                          onChanged: (val) {
+                            setStateDialog(() {
+                              if (val == true) {
+                                selected.add(l.id);
+                              } else {
+                                selected.remove(l.id);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Start quiz'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || selected.isEmpty) return;
+
     final api = context.read<SessionState>().api;
+
     try {
-      final session = await api.createQuizSession(
-        wordListId: lists.first.id,
-        mode: 'listen_type',
+      final words = await api.randomWordsFromLists(
+        listIds: selected.toList(),
         size: 10,
       );
+
+      final wordIds = words.map((w) => w.id).toList();
+
+      final session = await api.createQuizSessionFromWords(
+        mode: 'listen_type',
+        wordIds: wordIds,
+      );
+
       if (!mounted) return;
+
       await Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => QuizScreen(session: session),
         ),
       );
-    } catch (_) {}
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to start quiz: $e')),
+      );
+    }
   }
 
   Future<void> _showGenerateDialog() async {
