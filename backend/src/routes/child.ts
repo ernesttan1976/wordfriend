@@ -66,8 +66,8 @@ router.put('/', async (req: AuthRequest, res) => {
 
     if (existing.rows.length === 0) {
       const insert = await client.query(
-        `INSERT INTO children (user_id, age, theme, tts_engine)
-         VALUES ($1, $2, $3, 'native')
+        `INSERT INTO children (user_id, age, theme, tts_engine, created_at, updated_at)
+         VALUES ($1, $2, $3, 'native', now(), now())
          RETURNING id, age, theme, tts_engine, tts_voice`,
         [userId, age, theme],
       );

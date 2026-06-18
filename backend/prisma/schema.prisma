@@ -64,6 +64,7 @@ model Word {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   spelling       String
   phonicsPattern String?  @map("phonics_pattern")
+  ttsAudioBase64 String?  @map("tts_audio_base64")
 
   listItems      WordListItem[]
   stats          ChildWordStat[]

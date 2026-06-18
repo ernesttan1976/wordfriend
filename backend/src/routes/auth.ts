@@ -31,7 +31,9 @@ router.post('/google', async (req: AuthRequest, res) => {
 
     if (rows.length === 0) {
       const insert = await pool.query(
-        'INSERT INTO users (auth_provider, auth_provider_id, email) VALUES ($1, $2, $3) RETURNING id, email',
+        `INSERT INTO users (auth_provider, auth_provider_id, email, created_at, updated_at)
+         VALUES ($1, $2, $3, now(), now())
+         RETURNING id, email`,
         ['google', googleUser.sub, googleUser.email ?? null],
       );
       userId = insert.rows[0].id;

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import OpenAI from 'openai';
 import { config } from '../config';
 import { OPENAI_TTS_VOICES } from '../ttsVoices';
+import { pool } from '../db';
 
 const router = Router();
 
@@ -32,6 +33,21 @@ router.post('/', async (req, res) => {
       return res.status(500).json({ error: 'OpenAI not configured' });
     }
 
+    const spelling = text.trim();
+
+    // Check if we already have cached TTS for this word
+    const existing = await pool.query(
+      'SELECT id, tts_audio_base64 FROM words WHERE spelling = $1 LIMIT 1',
+      [spelling],
+    );
+
+    if (existing.rows.length > 0 && existing.rows[0].tts_audio_base64) {
+      const buffer = Buffer.from(existing.rows[0].tts_audio_base64, 'base64');
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      return res.send(buffer);
+    }
+
     const response = await openai.audio.speech.create({
       model: 'gpt-4o-mini-tts',
       voice: allowed.id,
@@ -39,6 +55,15 @@ router.post('/', async (req, res) => {
     });
 
     const buffer = Buffer.from(await response.arrayBuffer());
+
+    // Persist base64 to DB if word exists
+    const base64 = buffer.toString('base64');
+    if (existing.rows.length > 0) {
+      await pool.query(
+        'UPDATE words SET tts_audio_base64 = $1 WHERE id = $2',
+        [base64, existing.rows[0].id],
+      );
+    }
 
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-store');

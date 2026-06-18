@@ -80,8 +80,8 @@ router.post('/', async (req: AuthRequest, res) => {
   const childId: string = childResult.rows[0].id;
 
   const insertResult = await pool.query(
-    `INSERT INTO word_lists (child_id, name, source, prompt)
-     VALUES ($1, $2, 'manual', $3)
+    `INSERT INTO word_lists (child_id, name, source, prompt, updated_at)
+     VALUES ($1, $2, 'manual', $3, NOW())
      RETURNING id, name, source, prompt, created_at, updated_at`,
     [childId, name.trim(), prompt ?? null],
   );
@@ -209,8 +209,8 @@ router.post('/generate', async (req: AuthRequest, res) => {
       const listName = listNameBase.length > 80 ? `${listNameBase.slice(0, 77)}...` : listNameBase;
 
       const listInsert = await client.query(
-        `INSERT INTO word_lists (child_id, name, source, prompt)
-         VALUES ($1, $2, 'ai', $3)
+        `INSERT INTO word_lists (child_id, name, source, prompt, updated_at)
+         VALUES ($1, $2, 'ai', $3, NOW())
          RETURNING id, name, source, prompt, created_at, updated_at`,
         [childId, listName, prompt.trim()],
       );
@@ -329,6 +329,69 @@ router.get('/:id', async (req: AuthRequest, res) => {
     ...list,
     words: wordsResult.rows,
   });
+});
+
+// Rename a word list
+router.put('/:id', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { id } = req.params;
+  const { name } = req.body as { name?: string };
+
+  if (!name || !name.trim()) {
+    res.status(400).json({ error: 'name is required' });
+    return;
+  }
+
+  const result = await pool.query(
+    `UPDATE word_lists wl
+        SET name = $1, updated_at = now()
+      FROM children c
+     WHERE wl.id = $2
+       AND wl.child_id = c.id
+       AND c.user_id = $3
+     RETURNING wl.id, wl.name, wl.source, wl.prompt, wl.created_at, wl.updated_at`,
+    [name.trim(), id, userId],
+  );
+
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Word list not found' });
+    return;
+  }
+
+  res.json(result.rows[0]);
+});
+
+// Delete a word list
+router.delete('/:id', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { id } = req.params;
+
+  const result = await pool.query(
+    `DELETE FROM word_lists wl
+      USING children c
+     WHERE wl.id = $1
+       AND wl.child_id = c.id
+       AND c.user_id = $2
+     RETURNING wl.id`,
+    [id, userId],
+  );
+
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Word list not found' });
+    return;
+  }
+
+  res.status(204).send();
 });
 
 interface IncomingWord {
