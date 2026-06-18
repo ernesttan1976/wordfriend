@@ -52,7 +52,7 @@ class _QuizScreenState extends State<QuizScreen> {
       await _flutterTts.stop();
 
       if (child.ttsEngine == 'native') {
-        await _flutterTts.speak(_currentWord.spelling);
+        await _flutterTts.speak(_currentWord);
       } else {
         final bytes = await sessionState.api.postBytes(
           '/tts',
