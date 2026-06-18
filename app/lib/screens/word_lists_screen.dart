@@ -7,6 +7,7 @@ import '../session_state.dart';
 import 'child_profile_screen.dart';
 import 'word_list_detail_screen.dart';
 import 'quiz_stats_screen.dart';
+import 'quiz_screen.dart';
 
 class WordListsScreen extends StatefulWidget {
   const WordListsScreen({super.key});

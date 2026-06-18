@@ -121,6 +121,26 @@ class WordListDetail {
           wordsJson.map((w) => WordInList.fromJson(w as Map<String, dynamic>)).toList(),
     );
   }
+
+  WordListDetail copyWith({
+    String? id,
+    String? name,
+    String? source,
+    String? prompt,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    List<WordInList>? words,
+  }) {
+    return WordListDetail(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      source: source ?? this.source,
+      prompt: prompt ?? this.prompt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      words: words ?? this.words,
+    );
+  }
 }
 
 class QuizWord {
