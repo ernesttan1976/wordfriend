@@ -6,7 +6,7 @@ plugins {
 }
 
 extensions.configure<com.android.build.api.dsl.ApplicationExtension>("android") {
-    namespace = "com.pathfinder.wordfriend.app2"
+    namespace = "com.pathfinder.wordfriend"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ extensions.configure<com.android.build.api.dsl.ApplicationExtension>("android") 
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.pathfinder.wordfriend.app2"
+        applicationId = "com.pathfinder.wordfriend"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "101948645687",
+    "project_id": "wordfriend-65aab",
+    "storage_bucket": "wordfriend-65aab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:101948645687:android:10c3d79ae30becfa5dfab2",
+        "android_client_info": {
+          "package_name": "com.pathfinder.wordfriend"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "101948645687-hf9125pvb0a6q8nsd6qoro5iou44dibg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.pathfinder.wordfriend",
+            "certificate_hash": "0f1b95c1dad9121b2e9af0b7f49a227bb8b49090"
+          }
+        },
+        {
+          "client_id": "101948645687-b9hhst35pirgq5alj1tpnvg25avebu6e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBR1SZRuZYb7ywCCjKIkrx1UmZcyS98eBc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "101948645687-b9hhst35pirgq5alj1tpnvg25avebu6e.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

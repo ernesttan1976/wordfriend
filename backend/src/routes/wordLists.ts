@@ -169,7 +169,7 @@ router.post('/generate', async (req: AuthRequest, res) => {
         { role: 'user', content: userPromptParts.join('\n') },
       ],
       temperature: 0.7,
-      max_tokens: 800,
+      max_completion_tokens: 800,
       response_format: { type: 'json_object' },
     });
 

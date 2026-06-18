@@ -48,6 +48,10 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> _handleJsonResponse(http.Response resp) async {
+    // Log raw response for debugging
+    // ignore: avoid_print
+    print('[API RES] ${resp.request?.method} ${resp.request?.url} '
+        '${resp.statusCode} ${resp.body}');
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       if (resp.body.isEmpty) return <String, dynamic>{};
       final decoded = jsonDecode(resp.body);
@@ -60,6 +64,9 @@ class ApiClient {
   }
 
   Future<List<dynamic>> _handleJsonListResponse(http.Response resp) async {
+    // ignore: avoid_print
+    print('[API RES] ${resp.request?.method} ${resp.request?.url} '
+        '${resp.statusCode} ${resp.body}');
     if (resp.statusCode >= 200 && resp.statusCode < 300) {
       if (resp.body.isEmpty) return const <dynamic>[];
       final decoded = jsonDecode(resp.body);
@@ -74,6 +81,8 @@ class ApiClient {
   // Auth
 
   Future<LoginResponse> loginWithGoogleIdToken(String idToken) async {
+    // ignore: avoid_print
+    print('[API REQ] POST /auth/google (idToken length=${idToken.length})');
     final resp = await _client.post(
       _uri('/auth/google'),
       headers: _headers(),

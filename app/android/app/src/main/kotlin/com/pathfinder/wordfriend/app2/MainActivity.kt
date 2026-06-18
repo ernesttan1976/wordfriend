@@ -1,4 +1,4 @@
-package com.pathfinder.wordfriend.app2
+package com.pathfinder.wordfriend
 
 import io.flutter.embedding.android.FlutterActivity
 
