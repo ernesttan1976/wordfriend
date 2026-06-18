@@ -16,6 +16,7 @@ class SessionState extends ChangeNotifier {
 
   UserInfo? get user => _user;
   ChildProfile? get child => _child;
+  ChildProfile? get childProfile => _child;
   String? get token => _token;
   bool get loading => _loading;
   String? get error => _error;
@@ -101,5 +102,30 @@ class SessionState extends ChangeNotifier {
     _token = null;
     api.updateToken(null);
     notifyListeners();
+  }
+
+  Future<void> updateTtsSettings({
+    required String engine,
+    String? voice,
+  }) async {
+    if (_token == null) throw StateError('Not authenticated');
+
+    _setError(null);
+    _setLoading(true);
+
+    try {
+      final updated =
+          await api.updateChildTtsSettings(engine: engine, voice: voice);
+      _child = updated;
+      notifyListeners();
+    } on ApiException catch (e) {
+      _setError('Failed to update TTS settings: HTTP ${e.statusCode}');
+      rethrow;
+    } catch (e) {
+      _setError('Failed to update TTS settings: $e');
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
   }
 }

@@ -6,17 +6,27 @@ class UserInfo {
 }
 
 class ChildProfile {
-  ChildProfile({required this.id, required this.age, required this.theme});
+  ChildProfile({
+    required this.id,
+    required this.age,
+    required this.theme,
+    required this.ttsEngine,
+    this.ttsVoice,
+  });
 
   final String id;
   final int age;
   final String theme; // 'pony' | 'lego'
+  final String ttsEngine; // 'native' | 'openai'
+  final String? ttsVoice;
 
   factory ChildProfile.fromJson(Map<String, dynamic> json) {
     return ChildProfile(
       id: json['id'] as String,
       age: (json['age'] as num).toInt(),
       theme: json['theme'] as String,
+      ttsEngine: (json['tts_engine'] as String?) ?? 'native',
+      ttsVoice: json['tts_voice'] as String?,
     );
   }
 }

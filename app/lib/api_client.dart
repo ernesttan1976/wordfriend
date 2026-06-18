@@ -209,4 +209,47 @@ class ApiClient {
     final json = await _handleJsonResponse(resp);
     return QuizAttemptResult.fromJson(json);
   }
+
+  // TTS
+
+  Future<List<int>> postBytes(
+    String path, {
+    required Map<String, dynamic> body,
+  }) async {
+    final request = http.Request('POST', _uri(path));
+    request.headers.addAll(_headers());
+    request.body = jsonEncode(body);
+
+    final streamed = await _client.send(request);
+    final bytes = await streamed.stream.toBytes();
+
+    if (streamed.statusCode >= 200 && streamed.statusCode < 300) {
+      return bytes;
+    }
+
+    throw ApiException(streamed.statusCode, utf8.decode(bytes));
+  }
+
+  Future<List<String>> getTtsVoices() async {
+    final resp = await _client.get(_uri('/tts/voices'), headers: _headers());
+    final list = await _handleJsonListResponse(resp);
+    return list.map((e) => e.toString()).toList();
+  }
+
+  Future<ChildProfile> updateChildTtsSettings({
+    required String engine,
+    String? voice,
+  }) async {
+    final resp = await _client.patch(
+      _uri('/child/tts-settings'),
+      headers: _headers(),
+      body: jsonEncode({
+        'ttsEngine': engine,
+        'ttsVoice': voice,
+      }),
+    );
+
+    final json = await _handleJsonResponse(resp);
+    return ChildProfile.fromJson(json);
+  }
 }

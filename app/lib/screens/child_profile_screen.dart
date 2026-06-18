@@ -14,6 +14,10 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
   final TextEditingController _ageController = TextEditingController();
   String _theme = 'pony';
   bool _saving = false;
+  String _ttsEngine = 'native';
+  String? _ttsVoice;
+  List<String> _voices = [];
+  bool _loadingVoices = false;
 
   @override
   void initState() {
@@ -23,7 +27,11 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
     if (child != null) {
       _ageController.text = child.age.toString();
       _theme = child.theme;
+      _ttsEngine = child.ttsEngine;
+      _ttsVoice = child.ttsVoice;
     }
+
+    _loadVoices();
   }
 
   @override
@@ -57,6 +65,45 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
         });
       }
     }
+  }
+
+  Future<void> _loadVoices() async {
+    final session = context.read<SessionState>();
+    setState(() {
+      _loadingVoices = true;
+    });
+
+    try {
+      final voices = await session.api.getTtsVoices();
+      if (mounted) {
+        setState(() {
+          _voices = voices;
+        });
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {
+        _loadingVoices = false;
+      });
+    }
+  }
+
+  Future<void> _saveTts() async {
+    final session = context.read<SessionState>();
+
+    try {
+      await session.updateTtsSettings(
+        engine: _ttsEngine,
+        voice: _ttsEngine == 'openai' ? _ttsVoice : null,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Speech settings saved')),
+      );
+    } catch (_) {}
   }
 
   @override
@@ -111,6 +158,68 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                 const Text('Lego'),
               ],
             ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            Text(
+              'Speech Settings',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 16),
+            RadioListTile<String>(
+              value: 'native',
+              groupValue: _ttsEngine,
+              title: const Text('Use device voice'),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _ttsEngine = value;
+                });
+              },
+            ),
+            RadioListTile<String>(
+              value: 'openai',
+              groupValue: _ttsEngine,
+              title: const Text('Use OpenAI voice'),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _ttsEngine = value;
+                });
+              },
+            ),
+            if (_ttsEngine == 'openai') ...[
+              const SizedBox(height: 8),
+              _loadingVoices
+                  ? const CircularProgressIndicator()
+                  : DropdownButtonFormField<String>(
+                      value: _ttsVoice,
+                      items: _voices
+                          .map(
+                            (v) => DropdownMenuItem(
+                              value: v,
+                              child: Text(v),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _ttsVoice = value;
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Voice',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: _ttsEngine == 'openai' && _ttsVoice == null
+                    ? null
+                    : _saveTts,
+                child: const Text('Save Speech Settings'),
+              ),
+            ],
             const SizedBox(height: 16),
             if (session.error != null)
               Text(

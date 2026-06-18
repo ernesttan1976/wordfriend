@@ -8,6 +8,7 @@ import authRoutes from './routes/auth';
 import childRoutes from './routes/child';
 import wordListsRoutes from './routes/wordLists';
 import quizRoutes from './routes/quiz';
+import ttsRoutes from './routes/tts';
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/auth', authRoutes);
 app.use('/child', childRoutes);
 app.use('/word-lists', wordListsRoutes);
 app.use('/', quizRoutes);
+app.use('/tts', ttsRoutes);
 
 // Centralized error handler
 app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {

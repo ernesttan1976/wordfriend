@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 import '../api_client.dart';
 import '../models.dart';
@@ -19,8 +21,62 @@ class _QuizScreenState extends State<QuizScreen> {
   final TextEditingController _answerController = TextEditingController();
   bool _submitting = false;
   int _correctCount = 0;
+  final FlutterTts _flutterTts = FlutterTts();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _speaking = false;
 
   QuizWord get _currentWord => widget.session.words[_index];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _speakCurrentWord();
+    });
+  }
+
+  Future<void> _speakCurrentWord() async {
+    if (_speaking || _submitting) return;
+
+    final sessionState = context.read<SessionState>();
+    final child = sessionState.childProfile;
+    if (child == null) return;
+
+    setState(() {
+      _speaking = true;
+    });
+
+    try {
+      await _audioPlayer.stop();
+      await _flutterTts.stop();
+
+      if (child.ttsEngine == 'native') {
+        await _flutterTts.speak(_currentWord.spelling);
+      } else {
+        final bytes = await sessionState.api.postBytes(
+          '/tts',
+          body: {
+            'text': _currentWord.spelling,
+            'voice': child.ttsVoice,
+          },
+        );
+
+        await _audioPlayer.play(BytesSource(bytes));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Speech failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _speaking = false;
+        });
+      }
+    }
+  }
 
   Future<void> _submit() async {
     final answer = _answerController.text.trim();
@@ -55,6 +111,9 @@ class _QuizScreenState extends State<QuizScreen> {
       if (_index + 1 < widget.session.words.length) {
         setState(() {
           _index += 1;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _speakCurrentWord();
         });
       } else {
         await showDialog<void>(
@@ -98,6 +157,8 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void dispose() {
     _answerController.dispose();
+    _flutterTts.stop();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -121,9 +182,12 @@ class _QuizScreenState extends State<QuizScreen> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Imagine the app has just spoken the word.\n'
-              'Type what you heard.',
+            const Text('Listen carefully. Type what you hear.'),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _speaking ? null : _speakCurrentWord,
+              icon: const Icon(Icons.volume_up),
+              label: const Text('Replay word'),
             ),
             const SizedBox(height: 16),
             TextField(
