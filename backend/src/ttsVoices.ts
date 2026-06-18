@@ -1,6 +1,6 @@
 export const OPENAI_TTS_VOICES = [
   { id: 'alloy', label: 'Alloy (Neutral)' },
-  { id: 'aria', label: 'Aria (Bright)' },
+  { id: 'nova', label: 'Nova (Bright)' },
   { id: 'sage', label: 'Sage (Calm)' },
   { id: 'verse', label: 'Verse (Expressive)' },
 ];

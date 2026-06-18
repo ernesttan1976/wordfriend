@@ -192,25 +192,36 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
               const SizedBox(height: 8),
               _loadingVoices
                   ? const CircularProgressIndicator()
-                  : DropdownButtonFormField<String>(
-                      value: _ttsVoice,
-                      items: _voices
-                          .map(
-                            (v) => DropdownMenuItem(
-                              value: v,
-                              child: Text(v),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _ttsVoice = value;
-                        });
+                  : Builder(
+                      builder: (context) {
+                        // Ensure unique items and only use value if it exists exactly once
+                        final uniqueVoices = _voices.toSet().toList();
+                        final effectiveValue = (_ttsVoice != null &&
+                                uniqueVoices.where((v) => v == _ttsVoice).length == 1)
+                            ? _ttsVoice
+                            : null;
+
+                        return DropdownButtonFormField<String>(
+                          value: effectiveValue,
+                          items: uniqueVoices
+                              .map(
+                                (v) => DropdownMenuItem<String>(
+                                  value: v,
+                                  child: Text(v),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              _ttsVoice = value;
+                            });
+                          },
+                          decoration: const InputDecoration(
+                            labelText: 'Voice',
+                            border: OutlineInputBorder(),
+                          ),
+                        );
                       },
-                      decoration: const InputDecoration(
-                        labelText: 'Voice',
-                        border: OutlineInputBorder(),
-                      ),
                     ),
               const SizedBox(height: 12),
               ElevatedButton(
