@@ -132,6 +132,65 @@ class ApiClient {
     return WordListDetail.fromJson(json);
   }
 
+  Future<void> deleteWordList(String id) async {
+    final resp = await _client.delete(_uri('/word-lists/$id'), headers: _headers());
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw ApiException(resp.statusCode, resp.body);
+    }
+  }
+
+  Future<WordInList> updateWordInList({
+    required String listId,
+    required String wordId,
+    required String spelling,
+    String? phonicsPattern,
+  }) async {
+    final resp = await _client.put(
+      _uri('/word-lists/$listId/words/$wordId'),
+      headers: _headers(),
+      body: jsonEncode({
+        'spelling': spelling,
+        'phonicsPattern': phonicsPattern,
+      }),
+    );
+
+    final json = await _handleJsonResponse(resp);
+    return WordInList.fromJson(json);
+  }
+
+  Future<void> deleteWordFromList({
+    required String listId,
+    required String wordId,
+  }) async {
+    final resp = await _client.delete(
+      _uri('/word-lists/$listId/words/$wordId'),
+      headers: _headers(),
+    );
+    if (resp.statusCode < 200 || resp.statusCode >= 300) {
+      throw ApiException(resp.statusCode, resp.body);
+    }
+  }
+
+  Future<List<WordInList>> randomWordsFromLists({
+    required List<String> listIds,
+    int size = 10,
+  }) async {
+    final resp = await _client.post(
+      _uri('/word-lists/random-from-lists'),
+      headers: _headers(),
+      body: jsonEncode({
+        'listIds': listIds,
+        'size': size,
+      }),
+    );
+
+    final json = await _handleJsonResponse(resp);
+    final words = (json['words'] as List<dynamic>? ?? []);
+    return words
+        .map((w) => WordInList.fromJson(w as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<WordListDetail> generateWordList({
     required String prompt,
     int size = 10,
@@ -208,6 +267,11 @@ class ApiClient {
 
     final json = await _handleJsonResponse(resp);
     return QuizAttemptResult.fromJson(json);
+  }
+
+  Future<Map<String, dynamic>> getQuizStats() async {
+    final resp = await _client.get(_uri('/quiz/stats'), headers: _headers());
+    return _handleJsonResponse(resp);
   }
 
   // TTS
