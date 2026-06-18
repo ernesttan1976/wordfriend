@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  authProvider    String    @map("auth_provider")
+  authProviderId  String    @unique @map("auth_provider_id")
+  email           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  children        Child[]
+
+  @@map("users")
+}
+
+model Child {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  age        Int
+  theme      String
+  ttsEngine  String   @default("openai") @map("tts_engine")
+  ttsVoice   String?  @map("tts_voice")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wordLists        WordList[]
+  childWordStats   ChildWordStat[]
+  quizSessions     QuizSession[]
+
+  @@unique([userId], map: "idx_children_user")
+  @@map("children")
+}
+
+model WordList {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  childId   String   @map("child_id") @db.Uuid
+  name      String
+  source    String   @default("manual")
+  prompt    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  child     Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+  items     WordListItem[]
+  sessions  QuizSession[]
+
+  @@map("word_lists")
+}
+
+model Word {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  spelling       String
+  phonicsPattern String?  @map("phonics_pattern")
+
+  listItems      WordListItem[]
+  stats          ChildWordStat[]
+  attempts       QuizAttempt[]
+
+  @@map("words")
+}
+
+model WordListItem {
+  wordListId String @map("word_list_id") @db.Uuid
+  wordId     String @map("word_id") @db.Uuid
+  position   Int?
+
+  wordList   WordList @relation(fields: [wordListId], references: [id], onDelete: Cascade)
+  word       Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@id([wordListId, wordId])
+  @@map("word_list_items")
+}
+
+model ChildWordStat {
+  childId         String    @map("child_id") @db.Uuid
+  wordId          String    @map("word_id") @db.Uuid
+  soundSpelling   String?   @map("sound_spelling")
+  difficulty      Float     @default(0)
+  streak          Int       @default(0)
+  lastResult      String?   @map("last_result")
+  lastPracticedAt DateTime? @map("last_practiced_at")
+  nextDueAt       DateTime? @map("next_due_at")
+
+  child           Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+  word            Word  @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@id([childId, wordId])
+  @@map("child_word_stats")
+}
+
+model QuizSession {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  childId     String    @map("child_id") @db.Uuid
+  mode        String
+  wordListId  String?   @map("word_list_id") @db.Uuid
+  startedAt   DateTime  @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  child       Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  wordList    WordList?  @relation(fields: [wordListId], references: [id], onDelete: SetNull)
+  attempts    QuizAttempt[]
+
+  @@map("quiz_sessions")
+}
+
+model QuizAttempt {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  quizSessionId    String   @map("quiz_session_id") @db.Uuid
+  wordId           String   @map("word_id") @db.Uuid
+  mode             String
+  typedAnswer      String?  @map("typed_answer")
+  speechRecognized String?  @map("speech_recognized")
+  score            Int?
+  isCorrect        Boolean? @map("is_correct")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  quizSession      QuizSession @relation(fields: [quizSessionId], references: [id], onDelete: Cascade)
+  word             Word        @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_attempts")
+}

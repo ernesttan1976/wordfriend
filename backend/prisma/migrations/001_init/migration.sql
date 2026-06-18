@@ -1,3 +1,6 @@
+-- Initial schema migration
+-- Creates all core tables and indexes
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- Users table: parent accounts authenticated via social login (e.g. Google)

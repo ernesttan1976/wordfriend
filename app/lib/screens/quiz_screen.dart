@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../api_client.dart';
 import '../models.dart';
@@ -61,7 +62,13 @@ class _QuizScreenState extends State<QuizScreen> {
           },
         );
 
-        await _audioPlayer.play(BytesSource(bytes));
+        // BytesSource expects Uint8List, convert List<int> to Uint8List
+        final uri = Uri.dataFromBytes(
+          Uint8List.fromList(bytes),
+          mimeType: 'audio/mpeg',
+        );
+        await _audioPlayer.setAudioSource(AudioSource.uri(uri));
+        await _audioPlayer.play();
       }
     } catch (e) {
       if (mounted) {
