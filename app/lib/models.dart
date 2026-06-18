@@ -163,7 +163,7 @@ class QuizSession {
   QuizSession({
     required this.id,
     required this.mode,
-    required this.wordListId,
+    this.wordListId,
     this.startedAt,
     this.completedAt,
     required this.words,
@@ -171,7 +171,7 @@ class QuizSession {
 
   final String id;
   final String mode; // 'listen_type' | 'read_say'
-  final String wordListId;
+  final String? wordListId;
   final DateTime? startedAt;
   final DateTime? completedAt;
   final List<QuizWord> words;
@@ -181,7 +181,7 @@ class QuizSession {
     return QuizSession(
       id: json['id'] as String,
       mode: json['mode'] as String,
-      wordListId: json['wordListId'] as String,
+      wordListId: json['wordListId'] as String?,
       startedAt: json['startedAt'] != null
           ? DateTime.tryParse(json['startedAt'].toString())
           : null,
