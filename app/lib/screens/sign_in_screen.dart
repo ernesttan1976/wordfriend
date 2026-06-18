@@ -14,6 +14,26 @@ class SignInScreen extends StatefulWidget {
 
 class _SignInScreenState extends State<SignInScreen> {
   bool _submitting = false;
+  late final GoogleSignIn _googleSignIn;
+  bool _hasGoogleSession = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _googleSignIn = GoogleSignIn(
+      scopes: const <String>['email', 'openid', 'profile'],
+      serverClientId: googleServerClientId,
+    );
+    _checkExistingGoogleSession();
+  }
+
+  Future<void> _checkExistingGoogleSession() async {
+    final account = await _googleSignIn.signInSilently();
+    if (!mounted) return;
+    setState(() {
+      _hasGoogleSession = account != null;
+    });
+  }
 
   Future<void> _signInWithGoogle() async {
     if (googleServerClientId.isEmpty) {
@@ -34,13 +54,7 @@ class _SignInScreenState extends State<SignInScreen> {
     });
 
     try {
-      final googleSignIn = GoogleSignIn(
-        // Request OpenID Connect so we can get an ID token.
-        scopes: const <String>['email', 'openid', 'profile'],
-        serverClientId: googleServerClientId,
-      );
-
-      final account = await googleSignIn.signIn();
+      final account = await _googleSignIn.signIn();
       if (account == null) {
         // User cancelled.
         return;
@@ -56,6 +70,9 @@ class _SignInScreenState extends State<SignInScreen> {
 
       await session.signInWithIdToken(idToken);
       await session.loadChildProfile();
+      setState(() {
+        _hasGoogleSession = true;
+      });
     } catch (e) {
       // `SessionState` will store API errors; this covers local/plugin errors too.
       if (mounted) {
@@ -70,6 +87,14 @@ class _SignInScreenState extends State<SignInScreen> {
         });
       }
     }
+  }
+
+  Future<void> _signOutGoogle() async {
+    await _googleSignIn.signOut();
+    if (!mounted) return;
+    setState(() {
+      _hasGoogleSession = false;
+    });
   }
 
   @override
@@ -103,6 +128,13 @@ class _SignInScreenState extends State<SignInScreen> {
                     )
                   : const Text('Sign in with Google'),
             ),
+            if (_hasGoogleSession) ...[
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _signOutGoogle,
+                child: const Text('Sign out of Google'),
+              ),
+            ],
           ],
         ),
       ),

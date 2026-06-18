@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 import '../api_client.dart';
 import '../models.dart';
@@ -62,12 +64,12 @@ class _QuizScreenState extends State<QuizScreen> {
           },
         );
 
-        // BytesSource expects Uint8List, convert List<int> to Uint8List
-        final uri = Uri.dataFromBytes(
-          Uint8List.fromList(bytes),
-          mimeType: 'audio/mpeg',
-        );
-        await _audioPlayer.setAudioSource(AudioSource.uri(uri));
+        // Write to temp file to avoid Android data URI issues
+        final dir = await getTemporaryDirectory();
+        final file = File('${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
+        await file.writeAsBytes(bytes, flush: true);
+
+        await _audioPlayer.setAudioSource(AudioSource.file(file.path));
         await _audioPlayer.play();
       }
     } catch (e) {

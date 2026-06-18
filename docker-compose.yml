@@ -4,9 +4,11 @@ services:
   db:
     image: postgres:16
     restart: unless-stopped
+    env_file:
+      - ./.env
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: wordfriend
     ports:
       - '5433:5432'
@@ -22,11 +24,11 @@ services:
       - ./backend:/app
       - /app/node_modules
     env_file:
-      - ./backend/.env
+      - ./.env
     environment:
       NODE_ENV: development
       PORT: 4000
-      DATABASE_URL: postgres://postgres:postgres@db:5432/wordfriend
+      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@db:5432/wordfriend
     ports:
       - '4000:4000'
     depends_on:
