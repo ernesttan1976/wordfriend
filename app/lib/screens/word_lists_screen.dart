@@ -6,6 +6,7 @@ import '../models.dart';
 import '../session_state.dart';
 import 'child_profile_screen.dart';
 import 'word_list_detail_screen.dart';
+import 'quiz_stats_screen.dart';
 
 class WordListsScreen extends StatefulWidget {
   const WordListsScreen({super.key});
@@ -172,6 +173,17 @@ class _WordListsScreenState extends State<WordListsScreen> {
             onPressed: () async {
               final lists = await _listsFuture;
               await _quickQuiz(lists);
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            tooltip: 'Quiz stats',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const QuizStatsScreen(),
+                ),
+              );
             },
           ),
           IconButton(
