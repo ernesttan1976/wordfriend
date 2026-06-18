@@ -22,6 +22,7 @@ class WordListDetailScreen extends StatefulWidget {
 
 class _WordListDetailScreenState extends State<WordListDetailScreen> {
   late Future<WordListDetail> _detailFuture;
+  WordListDetail? _currentDetail;
 
   @override
   void initState() {
@@ -35,7 +36,9 @@ class _WordListDetailScreenState extends State<WordListDetailScreen> {
 
   Future<WordListDetail> _loadDetail() async {
     final api = context.read<SessionState>().api;
-    return api.getWordList(widget.listId);
+    final detail = await api.getWordList(widget.listId);
+    _currentDetail = detail;
+    return detail;
   }
 
   Future<void> _startQuiz() async {
@@ -65,6 +68,71 @@ class _WordListDetailScreenState extends State<WordListDetailScreen> {
     }
   }
 
+  Future<void> _deleteWord(WordInList word) async {
+    final api = context.read<SessionState>().api;
+    await api.deleteWordFromList(listId: widget.listId, wordId: word.id);
+    setState(() {
+      _currentDetail = _currentDetail?.copyWith(
+        words: _currentDetail!.words.where((w) => w.id != word.id).toList(),
+      );
+    });
+  }
+
+  Future<void> _editWord(WordInList word) async {
+    final spellingController = TextEditingController(text: word.spelling);
+    final phonicsController = TextEditingController(text: word.phonicsPattern ?? '');
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit word'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: spellingController,
+              decoration: const InputDecoration(labelText: 'Spelling'),
+            ),
+            TextField(
+              controller: phonicsController,
+              decoration: const InputDecoration(labelText: 'Phonics pattern'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != true) return;
+
+    final api = context.read<SessionState>().api;
+    final updated = await api.updateWordInList(
+      listId: widget.listId,
+      wordId: word.id,
+      spelling: spellingController.text.trim(),
+      phonicsPattern: phonicsController.text.trim().isEmpty
+          ? null
+          : phonicsController.text.trim(),
+    );
+
+    setState(() {
+      _currentDetail = _currentDetail?.copyWith(
+        words: _currentDetail!.words
+            .map((w) => w.id == updated.id ? updated : w)
+            .toList(),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,7 +153,7 @@ class _WordListDetailScreenState extends State<WordListDetailScreen> {
               ),
             );
           }
-          final detail = snapshot.data;
+          final detail = _currentDetail ?? snapshot.data;
           if (detail == null) {
             return const Center(child: Text('List not found'));
           }
@@ -131,6 +199,25 @@ class _WordListDetailScreenState extends State<WordListDetailScreen> {
                       subtitle: word.phonicsPattern != null
                           ? Text(word.phonicsPattern!)
                           : null,
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (value) async {
+                          if (value == 'edit') {
+                            await _editWord(word);
+                          } else if (value == 'delete') {
+                            await _deleteWord(word);
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Edit'),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete'),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -138,6 +225,18 @@ class _WordListDetailScreenState extends State<WordListDetailScreen> {
             ],
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          // Reuse edit dialog for adding
+          final newWord = WordInList(
+            id: '',
+            spelling: '',
+            phonicsPattern: null,
+          );
+          await _editWord(newWord);
+        },
+        child: const Icon(Icons.add),
       ),
     );
   }
