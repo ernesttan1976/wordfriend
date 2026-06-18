@@ -4,10 +4,11 @@ WORKDIR /app
 
 COPY package.json package-lock.json* ./
 
-RUN npm install
+# Install dependencies separately so this layer is cached
+RUN npm ci
 
-COPY tsconfig.json .
-COPY src ./src
+# Copy application code last to maximize cache reuse
+COPY . .
 
 EXPOSE 4000
 
