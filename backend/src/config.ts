@@ -1,6 +1,7 @@
 export const config = {
   port: Number(process.env.PORT) || 4000,
-  databaseUrl: process.env.DATABASE_URL || '',
+  // Do not default to empty string; fail fast if missing
+  databaseUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET || '',
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
    openaiApiKey: process.env.OPENAI_API_KEY || '',
