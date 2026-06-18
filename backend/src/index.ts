@@ -47,7 +47,8 @@ app.get('/health/db', async (_req, res) => {
 app.use('/auth', authRoutes);
 app.use('/child', childRoutes);
 app.use('/word-lists', wordListsRoutes);
-app.use('/', quizRoutes);
+// Mount quiz routes under /quiz for clearer API structure
+app.use('/quiz', quizRoutes);
 app.use('/tts', ttsRoutes);
 
 // Centralized error handler

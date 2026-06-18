@@ -233,7 +233,7 @@ class ApiClient {
     int size = 10,
   }) async {
     final resp = await _client.post(
-      _uri('/quiz-sessions'),
+      _uri('/quiz/quiz-sessions'),
       headers: _headers(),
       body: jsonEncode(<String, dynamic>{
         'wordListId': wordListId,
@@ -250,7 +250,7 @@ class ApiClient {
     required List<String> wordIds,
   }) async {
     final resp = await _client.post(
-      _uri('/quiz-sessions/from-words'),
+      _uri('/quiz/quiz-sessions/from-words'),
       headers: _headers(),
       body: jsonEncode(<String, dynamic>{
         'mode': mode,
@@ -277,7 +277,7 @@ class ApiClient {
     };
 
     final resp = await _client.post(
-      _uri('/quiz-sessions/$sessionId/attempts'),
+      _uri('/quiz/quiz-sessions/$sessionId/attempts'),
       headers: _headers(),
       body: jsonEncode(body),
     );
