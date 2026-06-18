@@ -24,11 +24,23 @@ class _QuizScreenState extends State<QuizScreen> {
   final TextEditingController _answerController = TextEditingController();
   bool _submitting = false;
   int _correctCount = 0;
+  final List<String> _attempts = [];
+  int _hintLevel = 0;
+  String? _sentenceHint;
+  String? _similarHint;
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _speaking = false;
 
   QuizWord get _currentWord => widget.session.words[_index];
+
+  void _resetForNextWord() {
+    _attempts.clear();
+    _hintLevel = 0;
+    _sentenceHint = null;
+    _similarHint = null;
+    _answerController.clear();
+  }
 
   @override
   void initState() {
@@ -88,12 +100,15 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Future<void> _submit() async {
+    if (_attempts.length >= 3) return;
+
     final answer = _answerController.text.trim();
     if (answer.isEmpty) return;
 
     final api = context.read<SessionState>().api;
     setState(() {
       _submitting = true;
+      _attempts.add(answer);
     });
 
     try {
@@ -107,42 +122,40 @@ class _QuizScreenState extends State<QuizScreen> {
       if (result.isCorrect) {
         _correctCount += 1;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result.isCorrect ? 'Correct!' : 'Try again: ${_currentWord.spelling}',
-          ),
-        ),
-      );
+      final correct = result.isCorrect;
+      if (correct) _correctCount++;
 
-      _answerController.clear();
+      final maxed = _attempts.length >= 3;
 
-      if (_index + 1 < widget.session.words.length) {
-        setState(() {
-          _index += 1;
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _speakCurrentWord();
-        });
-      } else {
-        await showDialog<void>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Quiz complete'),
-            content: Text(
-              'You got $_correctCount out of ${widget.session.words.length} correct.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
+      if (correct || maxed) {
+        Future.delayed(const Duration(milliseconds: 1200), () async {
+          if (!mounted) return;
+
+          if (_index + 1 < widget.session.words.length) {
+            setState(() {
+              _index += 1;
+              _resetForNextWord();
+            });
+            _speakCurrentWord();
+          } else {
+            await showDialog<void>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Quiz complete'),
+                content: Text(
+                  'You got $_correctCount out of ${widget.session.words.length} correct.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK'),
+                  ),
+                ],
               ),
-            ],
-          ),
-        );
-        if (mounted) {
-          Navigator.of(context).pop();
-        }
+            );
+            if (mounted) Navigator.of(context).pop();
+          }
+        });
       }
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -158,9 +171,73 @@ class _QuizScreenState extends State<QuizScreen> {
       if (mounted) {
         setState(() {
           _submitting = false;
+          _answerController.clear();
         });
       }
     }
+  }
+
+  Widget _buildDiff(String attempt, String correct) {
+    final maxLen = correct.length;
+    final chars = <Widget>[];
+
+    for (int i = 0; i < maxLen; i++) {
+      final correctChar = correct[i];
+      final typedChar = i < attempt.length ? attempt[i] : '';
+      final isCorrect = typedChar == correctChar;
+
+      chars.add(Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: isCorrect ? Colors.green[300] : Colors.pink[200],
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          typedChar.isEmpty ? '_' : typedChar,
+          style: const TextStyle(fontSize: 16),
+        ),
+      ));
+    }
+
+    return Wrap(children: chars);
+  }
+
+  void _requestHint() {
+    if (_hintLevel >= 2) return;
+
+    final api = context.read<SessionState>().api;
+    final nextLevel = _hintLevel + 1;
+
+    setState(() {
+      _hintLevel = nextLevel;
+    });
+
+    api
+        .getQuizHint(
+          sessionId: widget.session.id,
+          wordId: _currentWord.id,
+          level: nextLevel,
+        )
+        .then((hint) {
+      if (!mounted) return;
+      setState(() {
+        if (nextLevel == 1) {
+          _sentenceHint = hint;
+        } else {
+          _similarHint = hint;
+        }
+      });
+    }).catchError((_) {
+      if (!mounted) return;
+      setState(() {
+        if (nextLevel == 1) {
+          _sentenceHint = 'Could not load hint.';
+        } else {
+          _similarHint = 'Could not load hint.';
+        }
+      });
+    });
   }
 
   @override
@@ -218,6 +295,25 @@ class _QuizScreenState extends State<QuizScreen> {
                     )
                   : const Text('Submit'),
             ),
+            const SizedBox(height: 16),
+            const Text('Attempts (max 3):'),
+            const SizedBox(height: 8),
+            for (final attempt in _attempts)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDiff(attempt, _currentWord.spelling),
+                  const SizedBox(height: 6),
+                ],
+              ),
+            const SizedBox(height: 12),
+            if (_attempts.length < 3)
+              TextButton(
+                onPressed: _requestHint,
+                child: const Text('Show hint'),
+              ),
+            if (_sentenceHint != null) Text('Hint 1: $_sentenceHint'),
+            if (_similarHint != null) Text('Hint 2: Similar word: $_similarHint'),
           ],
         ),
       ),

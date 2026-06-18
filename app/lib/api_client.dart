@@ -286,6 +286,24 @@ class ApiClient {
     return QuizAttemptResult.fromJson(json);
   }
 
+  Future<String> getQuizHint({
+    required String sessionId,
+    required String wordId,
+    required int level,
+  }) async {
+    final resp = await _client.post(
+      _uri('/quiz/quiz-sessions/$sessionId/hint'),
+      headers: _headers(),
+      body: jsonEncode({
+        'wordId': wordId,
+        'level': level,
+      }),
+    );
+
+    final json = await _handleJsonResponse(resp);
+    return json['hint'] as String;
+  }
+
   Future<Map<String, dynamic>> getQuizStats() async {
     final resp = await _client.get(_uri('/quiz/stats'), headers: _headers());
     return _handleJsonResponse(resp);

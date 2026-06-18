@@ -2,10 +2,16 @@ import { Router } from 'express';
 import { pool } from '../db';
 import { authMiddleware, AuthRequest } from '../auth/jwt';
 import { updateAfterAttempt } from '../spacedRepetition';
+import OpenAI from 'openai';
+import config from '../config';
 
 const router = Router();
 
 router.use(authMiddleware);
+
+const openai = config.openaiApiKey
+  ? new OpenAI({ apiKey: config.openaiApiKey })
+  : null;
 
 type QuizMode = 'listen_type' | 'read_say';
 
@@ -446,6 +452,89 @@ router.post('/quiz-sessions/:id/attempts', async (req: AuthRequest, res) => {
     res.status(500).json({ error: 'Failed to record quiz attempt' });
   } finally {
     client.release();
+  }
+});
+
+// Generate hints using OpenAI
+router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  if (!openai) {
+    res.status(500).json({ error: 'OpenAI not configured' });
+    return;
+  }
+
+  const { id: sessionId } = req.params;
+  const { wordId, level } = req.body as { wordId?: string; level?: number };
+
+  if (!wordId || (level !== 1 && level !== 2)) {
+    res.status(400).json({ error: 'wordId and level (1 or 2) required' });
+    return;
+  }
+
+  const sessionResult = await pool.query(
+    `SELECT qs.id
+       FROM quiz_sessions qs
+       JOIN children c ON qs.child_id = c.id
+      WHERE qs.id = $1 AND c.user_id = $2
+      LIMIT 1`,
+    [sessionId, userId],
+  );
+
+  if (sessionResult.rows.length === 0) {
+    res.status(404).json({ error: 'Quiz session not found' });
+    return;
+  }
+
+  const wordResult = await pool.query(
+    'SELECT spelling FROM words WHERE id = $1 LIMIT 1',
+    [wordId],
+  );
+
+  if (wordResult.rows.length === 0) {
+    res.status(404).json({ error: 'Word not found' });
+    return;
+  }
+
+  const word = wordResult.rows[0].spelling as string;
+
+  try {
+    if (level === 1) {
+      const prompt = `Write one simple sentence for a child that uses the word "${word}". Replace the word with blanks like "_____". Return only the sentence.`;
+
+      const response = await openai.responses.create({
+        model: 'gpt-4.1-mini',
+        input: prompt,
+      });
+
+      const text = response.output_text?.trim();
+      if (!text) throw new Error('Empty response');
+
+      res.json({ hint: text });
+      return;
+    }
+
+    if (level === 2) {
+      const prompt = `Give one real English word that is spelled very similarly to "${word}" but is not exactly the same word. Return only the word.`;
+
+      const response = await openai.responses.create({
+        model: 'gpt-4.1-mini',
+        input: prompt,
+      });
+
+      const text = response.output_text?.trim();
+      if (!text) throw new Error('Empty response');
+
+      res.json({ hint: text });
+      return;
+    }
+  } catch (err) {
+    console.error('Hint generation failed', err);
+    res.status(500).json({ error: 'Failed to generate hint' });
   }
 });
 
