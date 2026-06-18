@@ -3,14 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../session_state.dart';
-
-/// Set via `--dart-define=GOOGLE_SERVER_CLIENT_ID=...`.
-///
-/// For Android, this should be the OAuth "Web application" client ID.
-const String googleServerClientId = String.fromEnvironment(
-  'GOOGLE_SERVER_CLIENT_ID',
-  defaultValue: '',
-);
+import '../constants.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});

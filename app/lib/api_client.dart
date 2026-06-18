@@ -3,12 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'models.dart';
-
-/// Base URL for the API. Override with --dart-define=API_BASE_URL=...
-const String apiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'http://localhost:4000',
-);
+import 'constants.dart';
 
 class ApiException implements Exception {
   ApiException(this.statusCode, this.body);
