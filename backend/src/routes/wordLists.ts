@@ -514,6 +514,136 @@ router.post('/:id/words', async (req: AuthRequest, res) => {
   }
 });
 
+// Update a word (spelling and/or phonics_pattern) within a list
+router.put('/:listId/words/:wordId', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { listId, wordId } = req.params;
+  const { spelling, phonicsPattern } = req.body as {
+    spelling?: string;
+    phonicsPattern?: string | null;
+  };
+
+  if (!spelling || !spelling.trim()) {
+    res.status(400).json({ error: 'spelling is required' });
+    return;
+  }
+
+  // Ensure list belongs to user and word is part of the list
+  const ownershipCheck = await pool.query(
+    `SELECT 1
+       FROM word_list_items wli
+       JOIN word_lists wl ON wli.word_list_id = wl.id
+       JOIN children c ON wl.child_id = c.id
+      WHERE wli.word_list_id = $1
+        AND wli.word_id = $2
+        AND c.user_id = $3
+      LIMIT 1`,
+    [listId, wordId, userId],
+  );
+
+  if (ownershipCheck.rows.length === 0) {
+    res.status(404).json({ error: 'Word not found in this list' });
+    return;
+  }
+
+  const result = await pool.query(
+    `UPDATE words
+        SET spelling = $1,
+            phonics_pattern = $2
+      WHERE id = $3
+      RETURNING id, spelling, phonics_pattern`,
+    [spelling.trim(), phonicsPattern ?? null, wordId],
+  );
+
+  res.json(result.rows[0]);
+});
+
+// Remove a word from a specific list (does not delete the global word)
+router.delete('/:listId/words/:wordId', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { listId, wordId } = req.params;
+
+  const result = await pool.query(
+    `DELETE FROM word_list_items wli
+      USING word_lists wl, children c
+     WHERE wli.word_list_id = $1
+       AND wli.word_id = $2
+       AND wli.word_list_id = wl.id
+       AND wl.child_id = c.id
+       AND c.user_id = $3
+     RETURNING wli.word_id`,
+    [listId, wordId, userId],
+  );
+
+  if (result.rows.length === 0) {
+    res.status(404).json({ error: 'Word not found in this list' });
+    return;
+  }
+
+  res.status(204).send();
+});
+
+interface RandomFromListsBody {
+  listIds: string[];
+  size?: number;
+}
+
+// Random words from multiple selected lists
+router.post('/random-from-lists', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { listIds, size } = req.body as RandomFromListsBody;
+
+  if (!Array.isArray(listIds) || listIds.length === 0) {
+    res.status(400).json({ error: 'listIds array is required' });
+    return;
+  }
+
+  const limit = Math.max(1, Math.min(50, size ?? 10));
+
+  // Ensure all lists belong to this user
+  const listsCheck = await pool.query(
+    `SELECT wl.id
+       FROM word_lists wl
+       JOIN children c ON wl.child_id = c.id
+      WHERE wl.id = ANY($1)
+        AND c.user_id = $2`,
+    [listIds, userId],
+  );
+
+  if (listsCheck.rows.length === 0) {
+    res.status(404).json({ error: 'No valid lists found' });
+    return;
+  }
+
+  const wordsResult = await pool.query(
+    `SELECT DISTINCT w.id,
+            w.spelling,
+            w.phonics_pattern
+       FROM word_list_items wli
+       JOIN words w ON wli.word_id = w.id
+      WHERE wli.word_list_id = ANY($1)
+      ORDER BY random()
+      LIMIT $2`,
+    [listIds, limit],
+  );
+
+  res.json({ words: wordsResult.rows });
+});
 // Get up to `size` recommended words from a list for the current user's child.
 // This is a simple random selection for now; spaced repetition will refine it later.
 router.get('/:id/recommendations', async (req: AuthRequest, res) => {
