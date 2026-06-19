@@ -38,12 +38,15 @@ router.get('/', async (req: AuthRequest, res) => {
             COUNT(wli.word_id)::int AS word_count,
             COALESCE(
               (
-                SELECT json_agg(w.spelling ORDER BY wli2.position)
-                FROM word_list_items wli2
-                JOIN words w ON w.id = wli2.word_id
-                WHERE wli2.word_list_id = wl.id
-                ORDER BY wli2.position
-                LIMIT 3
+                SELECT json_agg(sub.spelling ORDER BY sub.position)
+                FROM (
+                  SELECT w.spelling, wli2.position
+                  FROM word_list_items wli2
+                  JOIN words w ON w.id = wli2.word_id
+                  WHERE wli2.word_list_id = wl.id
+                  ORDER BY wli2.position
+                  LIMIT 3
+                ) sub
               ),
               '[]'
             ) AS preview_words
