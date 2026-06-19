@@ -214,13 +214,10 @@ class _QuizScreenState extends State<QuizScreen> {
           wordId: _currentWord.id,
           level: nextLevel,
         )
-        .then((response) {
+        .then((hint) {
       if (!mounted) return;
-      final hints = (response['hints'] as List<dynamic>? ?? [])
-          .map((e) => e.toString())
-          .toList();
       setState(() {
-        _visibleHints = hints;
+        _visibleHints.add(hint);
       });
     }).catchError((_) {
       if (!mounted) return;
