@@ -62,6 +62,48 @@ class _WordListsScreenState extends State<WordListsScreen> {
     await _refresh();
   }
 
+  Future<void> _renameList(WordListSummary list) async {
+    final controller = TextEditingController(text: list.name);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename list'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: 'List name'),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final newName = controller.text.trim();
+    if (newName.isEmpty || newName == list.name) return;
+
+    final api = context.read<SessionState>().api;
+    try {
+      await api.updateWordListName(id: list.id, name: newName);
+      await _refresh();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to rename list: $e')),
+      );
+    }
+  }
+
   Future<void> _quickQuiz(List<WordListSummary> lists) async {
     if (lists.isEmpty) return;
 
@@ -367,11 +409,17 @@ class _WordListsScreenState extends State<WordListsScreen> {
                   },
                   trailing: PopupMenuButton<String>(
                     onSelected: (value) async {
-                      if (value == 'delete') {
+                      if (value == 'rename') {
+                        await _renameList(list);
+                      } else if (value == 'delete') {
                         await _deleteList(list);
                       }
                     },
                     itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'rename',
+                        child: Text('Rename'),
+                      ),
                       PopupMenuItem(
                         value: 'delete',
                         child: Text('Delete'),

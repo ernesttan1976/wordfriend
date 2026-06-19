@@ -139,6 +139,21 @@ class ApiClient {
     }
   }
 
+  Future<WordListSummary> updateWordListName({
+    required String id,
+    required String name,
+  }) async {
+    final resp = await _client.put(
+      _uri('/word-lists/$id'),
+      headers: _headers(),
+      body: jsonEncode(<String, dynamic>{
+        'name': name,
+      }),
+    );
+    final json = await _handleJsonResponse(resp);
+    return WordListSummary.fromJson(json);
+  }
+
   Future<WordInList> updateWordInList({
     required String listId,
     required String wordId,
