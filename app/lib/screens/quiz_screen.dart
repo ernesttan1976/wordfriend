@@ -219,10 +219,17 @@ class _QuizScreenState extends State<QuizScreen> {
       setState(() {
         _visibleHints.add(hint);
       });
-    }).catchError((_) {
+    }).catchError((error) {
       if (!mounted) return;
+
+      String message = 'Could not load hint.';
+      if (error is ApiException) {
+        // Surface backend error body to help diagnose issues
+        message = 'Hint error: ${error.body}';
+      }
+
       setState(() {
-        _visibleHints.add('Could not load hint.');
+        _visibleHints.add(message);
       });
     });
   }
