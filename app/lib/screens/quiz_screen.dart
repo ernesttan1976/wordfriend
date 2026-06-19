@@ -214,10 +214,11 @@ class _QuizScreenState extends State<QuizScreen> {
           wordId: _currentWord.id,
           level: nextLevel,
         )
-        .then((hint) {
+        .then((hints) {
       if (!mounted) return;
       setState(() {
-        _visibleHints.add(hint);
+        // Backend returns the full hints array; keep UI in sync
+        _visibleHints = hints;
       });
     }).catchError((error) {
       if (!mounted) return;

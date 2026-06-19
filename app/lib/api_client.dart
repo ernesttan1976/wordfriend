@@ -286,7 +286,7 @@ class ApiClient {
     return QuizAttemptResult.fromJson(json);
   }
 
-  Future<String> getQuizHint({
+  Future<List<String>> getQuizHint({
     required String sessionId,
     required String wordId,
     required int level,
@@ -301,7 +301,8 @@ class ApiClient {
     );
 
     final json = await _handleJsonResponse(resp);
-    return json['hint'] as String;
+    final hints = (json['hints'] as List<dynamic>? ?? <dynamic>[]);
+    return hints.map((e) => e as String).toList();
   }
 
   Future<Map<String, dynamic>> getQuizStats() async {
