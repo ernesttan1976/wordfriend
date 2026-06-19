@@ -40,18 +40,15 @@ class _QuizStatsScreenState extends State<QuizStatsScreen> {
           }
 
           final data = snapshot.data ?? {};
-          final total = data['totalAttempts'] ?? 0;
-          final correct = data['correct'] ?? 0;
-          final incorrect = data['incorrect'] ?? 0;
-          final accuracy = data['accuracy'] ?? 0;
+          final correct = data['correctCount'] ?? 0;
+          final total = data['totalWords'] ?? 0;
+          final accuracy = data['accuracyPercent'] ?? 0;
           final last7 = data['last7DaysAttempts'] ?? 0;
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _StatTile(label: 'Total attempts', value: '$total'),
-              _StatTile(label: 'Correct', value: '$correct'),
-              _StatTile(label: 'Incorrect', value: '$incorrect'),
+              _StatTile(label: 'Score', value: '$correct / $total'),
               _StatTile(label: 'Accuracy', value: '${accuracy.toString()}%'),
               _StatTile(label: 'Last 7 days', value: '$last7'),
             ],

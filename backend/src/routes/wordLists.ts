@@ -100,6 +100,22 @@ interface GeneratedWord {
   phonics_pattern?: string | null;
 }
 
+function buildDeterministicHints(word: string) {
+  const lettersOnly = word.replace(/[^A-Za-z]/g, '');
+  const letterCount = `${lettersOnly.length} letters`;
+  const firstLast = `${lettersOnly[0]} ... ${lettersOnly[lettersOnly.length - 1]}`;
+  const consonants = lettersOnly
+    .split('')
+    .map((c) => (/[aeiouAEIOU]/.test(c) ? '_' : c))
+    .join('');
+
+  return {
+    hintLetterCount: letterCount,
+    hintFirstLast: firstLast,
+    hintConsonants: consonants,
+  };
+}
+
 function sanitizeGeneratedWord(raw: GeneratedWord): GeneratedWord | null {
   const spelling = (raw.spelling || '').trim();
   if (!spelling) return null;
@@ -205,8 +221,23 @@ router.post('/generate', async (req: AuthRequest, res) => {
     try {
       await client.query('BEGIN');
 
-      const listNameBase = name?.trim() || prompt.trim();
-      const listName = listNameBase.length > 80 ? `${listNameBase.slice(0, 77)}...` : listNameBase;
+      // Generate short 2-word title via AI
+      let listName = name?.trim();
+      if (!listName) {
+        const titleCompletion = await openai.chat.completions.create({
+          model: config.openaiModel,
+          messages: [
+            { role: 'system', content: 'Generate a short, friendly 2-word title (max 2 words) for a children spelling list. Respond with plain text only.' },
+            { role: 'user', content: `Prompt: ${prompt.trim()}` },
+          ],
+          temperature: 0.5,
+          max_completion_tokens: 20,
+        });
+
+        listName =
+          titleCompletion.choices[0]?.message?.content?.trim().split(/\s+/).slice(0, 2).join(' ') ||
+          prompt.trim().split(/\s+/).slice(0, 2).join(' ');
+      }
 
       const listInsert = await client.query(
         `INSERT INTO word_lists (child_id, name, source, prompt, updated_at)
@@ -233,9 +264,51 @@ router.post('/generate', async (req: AuthRequest, res) => {
         let wordId: string;
 
         if (existingWord.rows.length === 0) {
+          // Generate hints (deterministic + AI sentence/similar)
+          const det = buildDeterministicHints(spelling);
+
+          const hintCompletion = await openai.chat.completions.create({
+            model: config.openaiModel,
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'For the given single word, respond ONLY with JSON: {"sentence":"...","similar":"..."}. Sentence should use the word naturally. Similar should be a child-friendly similar word.',
+              },
+              { role: 'user', content: spelling },
+            ],
+            temperature: 0.6,
+            max_completion_tokens: 100,
+            response_format: { type: 'json_object' },
+          });
+
+          let sentenceHint: string | null = null;
+          let similarHint: string | null = null;
+          try {
+            const parsedHints = JSON.parse(hintCompletion.choices[0]?.message?.content || '{}');
+            sentenceHint = parsedHints.sentence ?? null;
+            similarHint = parsedHints.similar ?? null;
+          } catch {
+            sentenceHint = null;
+            similarHint = null;
+          }
+
           const insertWord = await client.query(
-            'INSERT INTO words (spelling, phonics_pattern) VALUES ($1, $2) RETURNING id',
-            [spelling, phonicsPattern],
+            `INSERT INTO words (
+               spelling, phonics_pattern,
+               hint_letter_count, hint_first_last, hint_consonants,
+               hint_sentence, hint_similar
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7)
+             RETURNING id`,
+            [
+              spelling,
+              phonicsPattern,
+              det.hintLetterCount,
+              det.hintFirstLast,
+              det.hintConsonants,
+              sentenceHint,
+              similarHint,
+            ],
           );
           wordId = insertWord.rows[0].id;
         } else {

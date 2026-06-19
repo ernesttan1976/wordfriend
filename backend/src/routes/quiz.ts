@@ -37,7 +37,7 @@ function selectWordsForQuiz(candidates: CandidateWordRow[], size: number, now: D
   // Compute a priority score per word.
   // Higher score = more urgent to practice.
   const scored = candidates.map((w) => {
-    const difficulty = w.difficulty ?? 3; // default mid-range
+    const difficulty = w.difficulty ?? 3; // base difficulty
     const nextDue = w.next_due_at;
 
     let score = 0;
@@ -110,6 +110,14 @@ router.post('/quiz-sessions', async (req: AuthRequest, res) => {
 
   const childId: string = listResult.rows[0].child_id;
 
+  // Get global difficulty bias for this child
+  const biasResult = await pool.query(
+    'SELECT global_difficulty_bias FROM children WHERE id = $1 LIMIT 1',
+    [childId],
+  );
+
+  const globalBias: number = biasResult.rows[0]?.global_difficulty_bias ?? 0;
+
   const wordsResult = await pool.query(
     `SELECT w.id,
             w.spelling,
@@ -138,6 +146,12 @@ router.post('/quiz-sessions', async (req: AuthRequest, res) => {
     next_due_at: (row.next_due_at ?? null) as Date | null,
     last_result: (row.last_result ?? null) as 'correct' | 'incorrect' | null,
   }));
+
+  // Apply global bias to difficulty before selection
+  candidates.forEach((c) => {
+    const base = c.difficulty ?? 3;
+    c.difficulty = Math.max(1, Math.min(10, base + globalBias));
+  });
 
   if (candidates.length === 0) {
     res.status(400).json({ error: 'Word list has no words' });
@@ -440,6 +454,39 @@ router.post('/quiz-sessions/:id/attempts', async (req: AuthRequest, res) => {
 
     await client.query('COMMIT');
 
+    // --- Adaptive global difficulty bias adjustment ---
+    const sessionTotals = await pool.query(
+      `SELECT COUNT(*)::int AS total,
+              COALESCE(SUM(CASE WHEN is_correct THEN 1 ELSE 0 END),0)::int AS correct
+         FROM quiz_attempts
+        WHERE quiz_session_id = $1`,
+      [session.id],
+    );
+
+    const total = sessionTotals.rows[0].total as number;
+    const correct = sessionTotals.rows[0].correct as number;
+
+    if (total >= 5) {
+      const accuracy = total > 0 ? correct / total : 0;
+
+      const biasRes = await pool.query(
+        'SELECT global_difficulty_bias FROM children WHERE id = $1 LIMIT 1',
+        [session.child_id],
+      );
+
+      let bias: number = biasRes.rows[0]?.global_difficulty_bias ?? 0;
+
+      if (accuracy >= 0.85) bias += 1;
+      else if (accuracy <= 0.3) bias -= 1;
+
+      bias = Math.max(-3, Math.min(3, bias));
+
+      await pool.query(
+        'UPDATE children SET global_difficulty_bias = $1 WHERE id = $2',
+        [bias, session.child_id],
+      );
+    }
+
     res.status(201).json({
       wordId: word.id,
       score,
@@ -455,7 +502,7 @@ router.post('/quiz-sessions/:id/attempts', async (req: AuthRequest, res) => {
   }
 });
 
-// Generate hints using OpenAI
+// Progressive hints using stored pre-generated hints
 router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
   const userId = req.user?.id;
   if (!userId) {
@@ -463,18 +510,15 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
     return;
   }
 
-  if (!openai) {
-    res.status(500).json({ error: 'OpenAI not configured' });
-    return;
-  }
-
   const { id: sessionId } = req.params;
   const { wordId, level } = req.body as { wordId?: string; level?: number };
 
-  if (!wordId || (level !== 1 && level !== 2)) {
-    res.status(400).json({ error: 'wordId and level (1 or 2) required' });
+  if (!wordId || typeof level !== 'number') {
+    res.status(400).json({ error: 'wordId and level required' });
     return;
   }
+
+  const safeLevel = Math.min(5, Math.max(1, Math.floor(level)));
 
   const sessionResult = await pool.query(
     `SELECT qs.id
@@ -491,7 +535,14 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
   }
 
   const wordResult = await pool.query(
-    'SELECT spelling FROM words WHERE id = $1 LIMIT 1',
+    `SELECT hint_letter_count,
+            hint_first_last,
+            hint_consonants,
+            hint_sentence,
+            hint_similar
+       FROM words
+      WHERE id = $1
+      LIMIT 1`,
     [wordId],
   );
 
@@ -500,42 +551,19 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
     return;
   }
 
-  const word = wordResult.rows[0].spelling as string;
+  const w = wordResult.rows[0];
 
-  try {
-    if (level === 1) {
-      const prompt = `Write one simple sentence for a child that uses the word "${word}". Replace the word with blanks like "_____". Return only the sentence.`;
+  const allHints = [
+    w.hint_letter_count,
+    w.hint_first_last,
+    w.hint_consonants,
+    w.hint_sentence,
+    w.hint_similar,
+  ].filter((h) => typeof h === 'string' && h.length > 0);
 
-      const response = await openai.responses.create({
-        model: 'gpt-4.1-mini',
-        input: prompt,
-      });
+  const visibleHints = allHints.slice(0, safeLevel);
 
-      const text = response.output_text?.trim();
-      if (!text) throw new Error('Empty response');
-
-      res.json({ hint: text });
-      return;
-    }
-
-    if (level === 2) {
-      const prompt = `Give one real English word that is spelled very similarly to "${word}" but is not exactly the same word. Return only the word.`;
-
-      const response = await openai.responses.create({
-        model: 'gpt-4.1-mini',
-        input: prompt,
-      });
-
-      const text = response.output_text?.trim();
-      if (!text) throw new Error('Empty response');
-
-      res.json({ hint: text });
-      return;
-    }
-  } catch (err) {
-    console.error('Hint generation failed', err);
-    res.status(500).json({ error: 'Failed to generate hint' });
-  }
+  res.json({ hints: visibleHints });
 });
 
 // Aggregate quiz statistics for current user's child
@@ -569,8 +597,7 @@ router.get('/stats', async (req: AuthRequest, res) => {
 
   const total = totalsResult.rows[0].total as number;
   const correct = totalsResult.rows[0].correct as number;
-  const incorrect = total - correct;
-  const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const accuracyPercent = total > 0 ? Math.round((correct / total) * 100) : 0;
 
   const last7DaysResult = await pool.query(
     `SELECT COUNT(*)::int AS total
@@ -584,10 +611,9 @@ router.get('/stats', async (req: AuthRequest, res) => {
   const last7DaysAttempts = last7DaysResult.rows[0].total as number;
 
   res.json({
-    totalAttempts: total,
-    correct,
-    incorrect,
-    accuracy,
+    correctCount: correct,
+    totalWords: total,
+    accuracyPercent,
     last7DaysAttempts,
   });
 });

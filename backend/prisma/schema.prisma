@@ -32,6 +32,7 @@ model Child {
   theme      String
   ttsEngine  String   @default("openai") @map("tts_engine")
   ttsVoice   String?  @map("tts_voice")
+  globalDifficultyBias Int @default(0) @map("global_difficulty_bias")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -65,6 +66,13 @@ model Word {
   spelling       String
   phonicsPattern String?  @map("phonics_pattern")
   ttsAudioBase64 String?  @map("tts_audio_base64")
+  
+  // Pre-generated hints
+  hintLetterCount String? @map("hint_letter_count")
+  hintFirstLast   String? @map("hint_first_last")
+  hintSentence    String? @map("hint_sentence")
+  hintConsonants  String? @map("hint_consonants")
+  hintSimilar     String? @map("hint_similar")
 
   listItems      WordListItem[]
   stats          ChildWordStat[]

@@ -26,8 +26,7 @@ class _QuizScreenState extends State<QuizScreen> {
   int _correctCount = 0;
   final List<String> _attempts = [];
   int _hintLevel = 0;
-  String? _sentenceHint;
-  String? _similarHint;
+  List<String> _visibleHints = [];
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _speaking = false;
@@ -37,8 +36,7 @@ class _QuizScreenState extends State<QuizScreen> {
   void _resetForNextWord() {
     _attempts.clear();
     _hintLevel = 0;
-    _sentenceHint = null;
-    _similarHint = null;
+    _visibleHints = [];
     _answerController.clear();
   }
 
@@ -119,9 +117,6 @@ class _QuizScreenState extends State<QuizScreen> {
       );
 
       if (!mounted) return;
-      if (result.isCorrect) {
-        _correctCount += 1;
-      }
       final correct = result.isCorrect;
       if (correct) _correctCount++;
 
@@ -204,7 +199,7 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   void _requestHint() {
-    if (_hintLevel >= 2) return;
+    if (_hintLevel >= 5) return;
 
     final api = context.read<SessionState>().api;
     final nextLevel = _hintLevel + 1;
@@ -219,23 +214,18 @@ class _QuizScreenState extends State<QuizScreen> {
           wordId: _currentWord.id,
           level: nextLevel,
         )
-        .then((hint) {
+        .then((response) {
       if (!mounted) return;
+      final hints = (response['hints'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList();
       setState(() {
-        if (nextLevel == 1) {
-          _sentenceHint = hint;
-        } else {
-          _similarHint = hint;
-        }
+        _visibleHints = hints;
       });
     }).catchError((_) {
       if (!mounted) return;
       setState(() {
-        if (nextLevel == 1) {
-          _sentenceHint = 'Could not load hint.';
-        } else {
-          _similarHint = 'Could not load hint.';
-        }
+        _visibleHints.add('Could not load hint.');
       });
     });
   }
@@ -312,8 +302,11 @@ class _QuizScreenState extends State<QuizScreen> {
                 onPressed: _requestHint,
                 child: const Text('Show hint'),
               ),
-            if (_sentenceHint != null) Text('Hint 1: $_sentenceHint'),
-            if (_similarHint != null) Text('Hint 2: Similar word: $_similarHint'),
+            for (int i = 0; i < _visibleHints.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text('Hint ${i + 1}: ${_visibleHints[i]}'),
+              ),
           ],
         ),
       ),
