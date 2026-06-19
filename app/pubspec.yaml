@@ -26,6 +26,24 @@ flutter:
   uses-material-design: true
   assets:
     - assets/monster.png
+    - assets/character/monster_arm_left_down.png
+    - assets/character/monster_arm_left_wave.png
+    - assets/character/monster_arm_right_down.png
+    - assets/character/monster_arm_right_wave.png
+    - assets/character/monster_leg_left.png
+    - assets/character/monster_leg_right.png
+    - assets/character/monster_body.png
+    - assets/character/monster_eyes_cheering.png
+    - assets/character/monster_eyes_closed.png
+    - assets/character/monster_eyes_crying.png
+    - assets/character/monster_eyes_funny.png
+    - assets/character/monster_eyes_half_open.png
+    - assets/character/monster_eyes_happy.png
+    - assets/character/monster_eyes_open.png
+    - assets/character/monster_mouth_big_smile.png
+    - assets/character/monster_mouth_neutral.png
+    - assets/character/monster_mouth_open.png
+    - assets/character/monster_mouth_smile.png
 
 flutter_launcher_icons:
   android: true
