@@ -102,40 +102,63 @@ class _SignInScreenState extends State<SignInScreen> {
     final session = context.watch<SessionState>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign in to WordFriend'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Sign in with Google to continue.'),
-            const SizedBox(height: 16),
-            if (session.error != null)
-              Text(
-                session.error!,
-                style: const TextStyle(color: Colors.red),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Word Friend',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: Image.asset(
+                        'assets/monster.png',
+                        height: 280,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (session.error != null)
+                      Text(
+                        session.error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    if (session.error != null) const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _submitting ? null : _signInWithGoogle,
+                      child: _submitting
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Sign in with Google'),
+                    ),
+                    if (_hasGoogleSession) ...[
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _signOutGoogle,
+                        child: const Text('Sign out of Google'),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _submitting ? null : _signInWithGoogle,
-              child: _submitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Sign in with Google'),
-            ),
-            if (_hasGoogleSession) ...[
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _signOutGoogle,
-                child: const Text('Sign out of Google'),
-              ),
-            ],
-          ],
+            );
+          },
         ),
       ),
     );
