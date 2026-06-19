@@ -39,6 +39,7 @@ class WordListSummary {
     this.prompt,
     this.wordCount,
     this.createdAt,
+    this.previewWords,
   });
 
   final String id;
@@ -47,6 +48,7 @@ class WordListSummary {
   final String? prompt;
   final int? wordCount;
   final DateTime? createdAt;
+  final List<String>? previewWords;
 
   factory WordListSummary.fromJson(Map<String, dynamic> json) {
     return WordListSummary(
@@ -58,6 +60,9 @@ class WordListSummary {
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())
           : null,
+      previewWords: (json['preview_words'] as List<dynamic>?)
+          ?.map((w) => w as String)
+          .toList(),
     );
   }
 }

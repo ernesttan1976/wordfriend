@@ -35,7 +35,18 @@ router.get('/', async (req: AuthRequest, res) => {
             wl.prompt,
             wl.created_at,
             wl.updated_at,
-            COUNT(wli.word_id)::int AS word_count
+            COUNT(wli.word_id)::int AS word_count,
+            COALESCE(
+              (
+                SELECT json_agg(w.spelling ORDER BY wli2.position)
+                FROM word_list_items wli2
+                JOIN words w ON w.id = wli2.word_id
+                WHERE wli2.word_list_id = wl.id
+                ORDER BY wli2.position
+                LIMIT 3
+              ),
+              '[]'
+            ) AS preview_words
        FROM word_lists wl
        LEFT JOIN word_list_items wli ON wli.word_list_id = wl.id
       WHERE wl.child_id = $1

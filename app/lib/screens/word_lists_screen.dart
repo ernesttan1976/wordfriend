@@ -347,16 +347,9 @@ class _WordListsScreenState extends State<WordListsScreen> {
               itemBuilder: (context, index) {
                 final list = lists[index];
                 final subtitleParts = <String>[];
-                // Show first 3 words from prompt as a preview (if available)
-                if (list.prompt != null && list.prompt!.trim().isNotEmpty) {
-                  final words = list.prompt!
-                      .trim()
-                      .split(RegExp(r'\s+'))
-                      .take(3)
-                      .join(', ');
-                  if (words.isNotEmpty) {
-                    subtitleParts.add(words);
-                  }
+                // Show first 3 actual words from the list
+                if (list.previewWords != null && list.previewWords!.isNotEmpty) {
+                  subtitleParts.add(list.previewWords!.take(3).join(', '));
                 }
                 if (list.wordCount != null) {
                   subtitleParts.add('${list.wordCount} words');
