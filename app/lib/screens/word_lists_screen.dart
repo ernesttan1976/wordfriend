@@ -210,16 +210,25 @@ class _WordListsScreenState extends State<WordListsScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) {
-          return const AlertDialog(
+          const words = ['Thinking...', 'Guessing...', 'Analyzing...', 'Finding...'];
+
+          return AlertDialog(
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(height: 8),
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text(
-                  'Thinking, guessing, analyzing, finding the best words for you...',
-                  textAlign: TextAlign.center,
+                const SizedBox(height: 8),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                StreamBuilder<int>(
+                  stream: Stream.periodic(const Duration(seconds: 1), (i) => i),
+                  builder: (context, snapshot) {
+                    final index = snapshot.data ?? 0;
+                    final text = words[index % words.length];
+                    return Text(
+                      text,
+                      textAlign: TextAlign.center,
+                    );
+                  },
                 ),
               ],
             ),
@@ -338,6 +347,17 @@ class _WordListsScreenState extends State<WordListsScreen> {
               itemBuilder: (context, index) {
                 final list = lists[index];
                 final subtitleParts = <String>[];
+                // Show first 3 words from prompt as a preview (if available)
+                if (list.prompt != null && list.prompt!.trim().isNotEmpty) {
+                  final words = list.prompt!
+                      .trim()
+                      .split(RegExp(r'\s+'))
+                      .take(3)
+                      .join(', ');
+                  if (words.isNotEmpty) {
+                    subtitleParts.add(words);
+                  }
+                }
                 if (list.wordCount != null) {
                   subtitleParts.add('${list.wordCount} words');
                 }
