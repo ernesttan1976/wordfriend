@@ -539,7 +539,8 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
             hint_first_last,
             hint_consonants,
             hint_sentence,
-            hint_similar
+            hint_similar,
+            spelling
        FROM words
       WHERE id = $1
       LIMIT 1`,
@@ -553,12 +554,38 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
 
   const w = wordResult.rows[0];
 
+  const spelling: string = w.spelling;
+
+  // Level 4: mask the word inside the sentence
+  let maskedSentence: string | null = w.hint_sentence;
+  if (typeof maskedSentence === 'string' && maskedSentence.length > 0) {
+    const blank = '_'.repeat(spelling.length);
+    const escaped = spelling.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escaped}\\b`, 'gi');
+    maskedSentence = maskedSentence.replace(regex, blank);
+  }
+
+  // Level 5: generate a near-spelling variant (1 letter mutation)
+  let similarWord: string | null = null;
+  if (spelling.length > 1) {
+    const letters = 'abcdefghijklmnopqrstuvwxyz';
+    const index = Math.floor(Math.random() * spelling.length);
+    let replacement = spelling[index].toLowerCase();
+    while (replacement === spelling[index].toLowerCase()) {
+      replacement = letters[Math.floor(Math.random() * letters.length)];
+    }
+    similarWord =
+      spelling.substring(0, index) +
+      replacement +
+      spelling.substring(index + 1);
+  }
+
   const allHints = [
     w.hint_letter_count,
     w.hint_first_last,
     w.hint_consonants,
-    w.hint_sentence,
-    w.hint_similar,
+    maskedSentence,
+    similarWord,
   ].filter((h) => typeof h === 'string' && h.length > 0);
 
   const visibleHints = allHints.slice(0, safeLevel);
