@@ -205,7 +205,37 @@ class _WordListsScreenState extends State<WordListsScreen> {
 
     final api = context.read<SessionState>().api;
     try {
-      final detail = await api.generateWordList(prompt: prompt, size: size, name: name);
+      // Show a modal loading dialog while the AI generates the list.
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 8),
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text(
+                  'Thinking, guessing, analyzing, finding the best words for you...',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final detail = await api.generateWordList(
+        prompt: prompt,
+        size: size,
+        name: name,
+      );
+
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -214,11 +244,17 @@ class _WordListsScreenState extends State<WordListsScreen> {
       );
       await _refresh();
     } on ApiException catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to generate list: HTTP ${e.statusCode}')),
       );
     } catch (e) {
+      if (mounted) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to generate list: $e')),
