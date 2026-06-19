@@ -565,19 +565,11 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
     maskedSentence = maskedSentence.replace(regex, blank);
   }
 
-  // Level 5: generate a near-spelling variant (1 letter mutation)
+  // Level 5: use stored similar/root-form hint only
   let similarWord: string | null = null;
-  if (spelling.length > 1) {
-    const letters = 'abcdefghijklmnopqrstuvwxyz';
-    const index = Math.floor(Math.random() * spelling.length);
-    let replacement = spelling[index].toLowerCase();
-    while (replacement === spelling[index].toLowerCase()) {
-      replacement = letters[Math.floor(Math.random() * letters.length)];
-    }
-    similarWord =
-      spelling.substring(0, index) +
-      replacement +
-      spelling.substring(index + 1);
+
+  if (typeof w.hint_similar === 'string' && w.hint_similar.length > 0) {
+    similarWord = w.hint_similar;
   }
 
   const allHints = [
