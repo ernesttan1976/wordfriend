@@ -273,11 +273,9 @@ class _QuizScreenState extends State<QuizScreen> {
             SizedBox(
               height: 180,
               width: double.infinity,
-              child: Center(
               child: MonsterMascot(
                 size: 160,
                 pose: _pose,
-              ),
               ),
             ),
             const SizedBox(height: 16),

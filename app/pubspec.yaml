@@ -26,6 +26,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/monster.png
+    - assets/soundtracks/cotton-toys-soundroll-main-version-16753-01-17.mp3
+    - assets/soundtracks/pixeltown-color-parade-main-version-41716-01-53.mp3
+    - assets/soundtracks/tumbling-danijel-zambo-main-version-42313-01-05.mp3
     - assets/character/monster_arm_left_down.png
     - assets/character/monster_arm_left_wave.png
     - assets/character/monster_arm_right_down.png

@@ -47,7 +47,7 @@ class _MonsterMascotState extends State<MonsterMascot>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 4),
-    )..repeat();
+    )..repeat(reverse: true); // 0->1 (left->right), 1->0 (right->left)
     _scheduleBlink();
   }
 
@@ -164,17 +164,10 @@ class _MonsterMascotState extends State<MonsterMascot>
             bool faceRightNow = widget.facingRight;
             if (pose == MonsterPose.walk && constraints.hasBoundedWidth) {
               final travel = max(0, constraints.maxWidth - widget.size);
-
-              // Ping-pong from left -> right -> left
-              final v = _controller.value; // 0..1
-              final goingRight = v < 0.5;
-              final localT = goingRight ? v * 2 : (v - 0.5) * 2;
-
-              dx = goingRight
-                  ? localT * travel
-                  : (1 - localT) * travel;
-
-              faceRightNow = goingRight;
+              // Full cycle: left -> right, then right -> left
+              dx = _controller.value * travel;
+              faceRightNow =
+                  _controller.status != AnimationStatus.reverse;
             }
 
             return Transform.translate(

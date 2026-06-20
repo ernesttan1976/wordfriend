@@ -165,6 +165,22 @@ class _SignInScreenState extends State<SignInScreen> {
                         pose: MonsterPose.signInScreen,
                       ),
                     ),
+                    const SizedBox(height: 32),
+                    Text(
+                      '''Music from #Uppbeat (free for Creators!):
+https://uppbeat.io/t/soundroll/cotton-toys
+
+Music from #Uppbeat (free for Creators!):
+https://uppbeat.io/t/danijel-zambo/tumbling
+
+Music from #Uppbeat (free for Creators!):
+https://uppbeat.io/t/pixeltown-color-parade/''',
+                      textAlign: TextAlign.center,                      
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.black54,
+                            fontSize: 8,
+                          ),
+                    ),
                   ],
                 ),
               ),
