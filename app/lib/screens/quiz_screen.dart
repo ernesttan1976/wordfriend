@@ -10,6 +10,7 @@ import '../api_client.dart';
 import '../models.dart';
 import '../session_state.dart';
 import '../monster_mascot.dart';
+import '../background_music_service.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key, required this.session});
@@ -63,10 +64,14 @@ class _QuizScreenState extends State<QuizScreen> {
     });
 
     try {
+      // Fade out background music while TTS plays
+      await BackgroundMusicService.instance.duckForTts();
+
       await _audioPlayer.stop();
       await _flutterTts.stop();
 
       if (child.ttsEngine == 'native') {
+        await _flutterTts.awaitSpeakCompletion(true);
         await _flutterTts.speak(_currentWord.spelling);
       } else {
         final bytes = await sessionState.api.postBytes(
@@ -84,6 +89,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
         await _audioPlayer.setAudioSource(AudioSource.file(file.path));
         await _audioPlayer.play();
+
+        // Wait until playback completes
+        await _audioPlayer.processingStateStream
+            .firstWhere((state) => state == ProcessingState.completed);
       }
     } catch (e) {
       if (mounted) {
@@ -92,6 +101,9 @@ class _QuizScreenState extends State<QuizScreen> {
         );
       }
     } finally {
+      // Restore background music after TTS completes or fails
+      await BackgroundMusicService.instance.restoreAfterTts();
+
       if (mounted) {
         setState(() {
           _speaking = false;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:just_audio/just_audio.dart';
 
 /// Simple background music service that loops through a fixed playlist.
@@ -9,6 +11,8 @@ class BackgroundMusicService {
 
   final AudioPlayer _player = AudioPlayer();
   bool _initialized = false;
+  double _currentVolume = 0.3;
+  double _preTtsVolume = 0.3;
 
   Future<void> initAndPlay() async {
     if (_initialized) return;
@@ -27,7 +31,8 @@ class BackgroundMusicService {
 
     await _player.setAudioSource(playlist);
     await _player.setLoopMode(LoopMode.all);
-    await _player.setVolume(0.3);
+    _currentVolume = 0.3;
+    await _player.setVolume(_currentVolume);
     await _player.play();
 
     _initialized = true;
@@ -35,5 +40,34 @@ class BackgroundMusicService {
 
   Future<void> dispose() async {
     await _player.dispose();
+  }
+
+  /// Fade out and mute background music for TTS playback.
+  Future<void> duckForTts({Duration duration = const Duration(milliseconds: 400)}) async {
+    if (!_initialized) return;
+
+    _preTtsVolume = _currentVolume;
+    await _fadeVolume(to: 0.0, duration: duration);
+  }
+
+  /// Fade music back in after TTS playback.
+  Future<void> restoreAfterTts({Duration duration = const Duration(milliseconds: 600)}) async {
+    if (!_initialized) return;
+
+    await _fadeVolume(to: _preTtsVolume, duration: duration);
+  }
+
+  Future<void> _fadeVolume({required double to, required Duration duration}) async {
+    const steps = 10;
+    final from = _currentVolume;
+    final stepDuration = duration ~/ steps;
+
+    for (var i = 1; i <= steps; i++) {
+      final t = i / steps;
+      final value = from + (to - from) * t;
+      _currentVolume = value.clamp(0.0, 1.0);
+      await _player.setVolume(_currentVolume);
+      await Future.delayed(stepDuration);
+    }
   }
 }
