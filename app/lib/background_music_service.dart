@@ -49,11 +49,16 @@ class BackgroundMusicService {
   }
 
   /// Set background music volume directly (0.0 - 1.0).
-  Future<void> setVolume(double value) async {
-    if (!_initialized) return;
+  Future<void> updateVolume(double value) async {
     _currentVolume = value.clamp(0.0, 1.0);
     _preTtsVolume = _currentVolume;
-    await _player.setVolume(_currentVolume);
+
+    if (_initialized) {
+      await _player.setVolume(_currentVolume);
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('music_volume', _currentVolume);
   }
 
   /// Fade out and mute background music for TTS playback.

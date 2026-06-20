@@ -195,9 +195,7 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                 setState(() {
                   _musicVolume = value;
                 });
-                _saveLocalVolume('music_volume', value);
-                // Apply immediately to background music
-                BackgroundMusicService.instance.setVolume(value);
+                BackgroundMusicService.instance.updateVolume(value);
               },
             ),
             const SizedBox(height: 8),
