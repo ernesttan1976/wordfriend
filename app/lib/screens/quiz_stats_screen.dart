@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../session_state.dart';
+import '../monster_mascot.dart';
 
 class QuizStatsScreen extends StatefulWidget {
   const QuizStatsScreen({super.key});
@@ -48,6 +49,17 @@ class _QuizStatsScreenState extends State<QuizStatsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              SizedBox(
+                height: 200,
+                width: double.infinity,
+                child: Center(
+                  child: MonsterMascot(
+                    size: 170,
+                    pose: MonsterPose.quizStatsScreen,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               _StatTile(label: 'Score', value: '$correct / $total'),
               _StatTile(label: 'Accuracy', value: '${accuracy.toString()}%'),
               _StatTile(label: 'Last 7 days', value: '$last7'),

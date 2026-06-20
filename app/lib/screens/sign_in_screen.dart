@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../session_state.dart';
 import '../constants.dart';
+import '../monster_mascot.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -156,6 +157,30 @@ class _SignInScreenState extends State<SignInScreen> {
                         child: const Text('Sign out of Google'),
                       ),
                     ],
+                    Positioned(
+                      bottom: 90,
+                      right: 16,
+                      child: MonsterMascot(
+                        size: 120,
+                        pose: MonsterPose.signInScreen,
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    Text(
+                      '''Music from #Uppbeat (free for Creators!):
+https://uppbeat.io/t/soundroll/cotton-toys
+
+Music from #Uppbeat (free for Creators!):
+https://uppbeat.io/t/danijel-zambo/tumbling
+
+Music from #Uppbeat (free for Creators!):
+https://uppbeat.io/t/pixeltown-color-parade/''',
+                      textAlign: TextAlign.center,                      
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.black54,
+                            fontSize: 8,
+                          ),
+                    ),
                   ],
                 ),
               ),

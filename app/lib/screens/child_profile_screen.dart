@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../session_state.dart';
+import '../background_music_service.dart';
 
 class ChildProfileScreen extends StatefulWidget {
   const ChildProfileScreen({super.key});
@@ -18,6 +20,8 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
   String? _ttsVoice;
   List<String> _voices = [];
   bool _loadingVoices = false;
+  double _musicVolume = 0.1;
+  double _ttsVolume = 1.0;
 
   @override
   void initState() {
@@ -32,12 +36,26 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
     }
 
     _loadVoices();
+    _loadLocalVolumes();
   }
 
   @override
   void dispose() {
     _ageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLocalVolumes() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _musicVolume = prefs.getDouble('music_volume') ?? 1.0;
+      _ttsVolume = prefs.getDouble('tts_volume') ?? 1.0;
+    });
+  }
+
+  Future<void> _saveLocalVolume(String key, double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(key, value);
   }
 
   Future<void> _save() async {
@@ -114,8 +132,8 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
       appBar: AppBar(
         title: const Text('Child profile'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 50),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -157,6 +175,43 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                 ),
                 const Text('Lego'),
               ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 16),
+            Text(
+              'Audio Settings',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 16),
+            const Text('Music Volume'),
+            Slider(
+              value: _musicVolume,
+              min: 0,
+              max: 1,
+              divisions: 10,
+              label: (_musicVolume * 100).round().toString(),
+              onChanged: (value) {
+                setState(() {
+                  _musicVolume = value;
+                });
+                BackgroundMusicService.instance.updateVolume(value);
+              },
+            ),
+            const SizedBox(height: 8),
+            const Text('TTS Volume'),
+            Slider(
+              value: _ttsVolume,
+              min: 0,
+              max: 1,
+              divisions: 10,
+              label: (_ttsVolume * 100).round().toString(),
+              onChanged: (value) {
+                setState(() {
+                  _ttsVolume = value;
+                });
+                _saveLocalVolume('tts_volume', value);
+              },
             ),
             const SizedBox(height: 16),
             const Divider(),

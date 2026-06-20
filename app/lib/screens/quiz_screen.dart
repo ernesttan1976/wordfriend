@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import '../api_client.dart';
 import '../models.dart';
 import '../session_state.dart';
+import '../monster_mascot.dart';
+import '../background_music_service.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key, required this.session});
@@ -30,6 +32,7 @@ class _QuizScreenState extends State<QuizScreen> {
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _speaking = false;
+  MonsterPose _pose = MonsterPose.quizScreen;
 
   QuizWord get _currentWord => widget.session.words[_index];
 
@@ -38,6 +41,7 @@ class _QuizScreenState extends State<QuizScreen> {
     _hintLevel = 0;
     _visibleHints = [];
     _answerController.clear();
+    _pose = MonsterPose.quizScreen;
   }
 
   @override
@@ -60,10 +64,14 @@ class _QuizScreenState extends State<QuizScreen> {
     });
 
     try {
+      // Fade out background music while TTS plays
+      await BackgroundMusicService.instance.duckForTts();
+
       await _audioPlayer.stop();
       await _flutterTts.stop();
 
       if (child.ttsEngine == 'native') {
+        await _flutterTts.awaitSpeakCompletion(true);
         await _flutterTts.speak(_currentWord.spelling);
       } else {
         final bytes = await sessionState.api.postBytes(
@@ -81,6 +89,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
         await _audioPlayer.setAudioSource(AudioSource.file(file.path));
         await _audioPlayer.play();
+
+        // Wait until playback completes
+        await _audioPlayer.processingStateStream
+            .firstWhere((state) => state == ProcessingState.completed);
       }
     } catch (e) {
       if (mounted) {
@@ -89,6 +101,9 @@ class _QuizScreenState extends State<QuizScreen> {
         );
       }
     } finally {
+      // Restore background music after TTS completes or fails
+      await BackgroundMusicService.instance.restoreAfterTts();
+
       if (mounted) {
         setState(() {
           _speaking = false;
@@ -122,6 +137,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
       final maxed = _attempts.length >= 3;
 
+      setState(() {
+        _pose = correct ? MonsterPose.quizCorrect : MonsterPose.quizWrong;
+      });
+
       if (correct || maxed) {
         Future.delayed(const Duration(milliseconds: 1200), () async {
           if (!mounted) return;
@@ -150,6 +169,15 @@ class _QuizScreenState extends State<QuizScreen> {
             );
             if (mounted) Navigator.of(context).pop();
           }
+        });
+      }
+      // If wrong but not maxed, return to normal quiz pose after a short delay
+      if (!correct && !maxed) {
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (!mounted) return;
+          setState(() {
+            _pose = MonsterPose.quizScreen;
+          });
         });
       }
     } on ApiException catch (e) {
@@ -249,11 +277,20 @@ class _QuizScreenState extends State<QuizScreen> {
       appBar: AppBar(
         title: const Text('Listen & type quiz'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 200),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SizedBox(
+              height: 180,
+              width: double.infinity,
+              child: MonsterMascot(
+                size: 160,
+                pose: _pose,
+              ),
+            ),
+            const SizedBox(height: 16),
             LinearProgressIndicator(
               value: ( (_index + 1) / widget.session.words.length),
             ),

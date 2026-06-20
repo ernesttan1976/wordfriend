@@ -5,9 +5,15 @@ import 'screens/child_profile_screen.dart';
 import 'screens/sign_in_screen.dart';
 import 'screens/word_lists_screen.dart';
 import 'session_state.dart';
+import 'background_music_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const WordFriendApp());
+
+  // Start background music without blocking app startup.
+  // Any errors are caught so they don't crash the app.
+  BackgroundMusicService.instance.initAndPlay().catchError((_) {});
 }
 
 class WordFriendApp extends StatelessWidget {

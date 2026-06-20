@@ -8,6 +8,8 @@ import 'child_profile_screen.dart';
 import 'word_list_detail_screen.dart';
 import 'quiz_stats_screen.dart';
 import 'quiz_screen.dart';
+import '../monster_mascot.dart';
+import 'mascot_test_screen.dart';
 
 class WordListsScreen extends StatefulWidget {
   const WordListsScreen({super.key});
@@ -317,8 +319,10 @@ class _WordListsScreenState extends State<WordListsScreen> {
   Widget build(BuildContext context) {
     final session = context.watch<SessionState>();
 
-    return Scaffold(
-      appBar: AppBar(
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
         title: const Text('Word lists'),
         actions: [
           IconButton(
@@ -347,6 +351,17 @@ class _WordListsScreenState extends State<WordListsScreen> {
                 MaterialPageRoute(builder: (_) => const ChildProfileScreen()),
               );
               await _refresh();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.pets),
+            tooltip: 'Mascot test',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MascotTestScreen(),
+                ),
+              );
             },
           ),
           IconButton(
@@ -432,10 +447,20 @@ class _WordListsScreenState extends State<WordListsScreen> {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showGenerateDialog,
-        child: const Icon(Icons.add),
-      ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: _showGenerateDialog,
+            child: const Icon(Icons.add),
+          ),
+        ),
+        Positioned(
+          bottom: 90,
+          right: 16,
+          child: MonsterMascot(
+            size: 120,
+            pose: MonsterPose.wordListsScreen,
+          ),
+        ),
+      ],
     );
   }
 }
