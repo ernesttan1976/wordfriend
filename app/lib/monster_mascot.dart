@@ -99,7 +99,7 @@ class _MonsterMascotState extends State<MonsterMascot>
             rightArm = walkCycle * 0.5;
             break;
           case MonsterPose.wave:
-            rightArm = sin(t * 8) * 0.9;
+            rightArm = 3.1 - sin(t * 8) * 0.9;
             break;
           case MonsterPose.cry:
             rootShakeX = sin(t * 20) * 1.5 * scale;
@@ -183,30 +183,12 @@ class _MonsterMascotState extends State<MonsterMascot>
             ),
           ),
 
-          // LEFT ARM
-          _part(
-            asset: _leftArmAsset(),
-            angle: leftArm,
-            position: const Offset(5, 120),
-            pivot: const Offset(15, 10),
-            scale: scale,
-            partScale: 0.2
-          ),
-
-          // RIGHT ARM
-          _part(
-            asset: _rightArmAsset(),
-            angle: rightArm,
-            position: const Offset(190, 120),
-            pivot: const Offset(15, 10),
-            scale: scale,
-            partScale: 0.2
-          ),
+          
 
           // EYES
           Positioned(
-            left: 34,
-            top: 31,
+            left: scale * 66,
+            top: scale * 60,
             child: Image.asset(
               _eyeAsset(),
               width: designSize * scale * 0.47,
@@ -215,12 +197,32 @@ class _MonsterMascotState extends State<MonsterMascot>
 
           // MOUTH
           Positioned(
-            left: 46,
-            top: 50,
+            left: scale * 100,
+            top: scale * 105,
             child: Image.asset(
               _mouthAsset(),
-              width: designSize * scale * 0.25,
+              width: designSize * scale * 0.20,
             ),
+          ),
+
+          // LEFT ARM
+          _part(
+            asset: _leftArmAsset(),
+            angle: leftArm,
+            position: const Offset(15, 120),
+            pivot: const Offset(25, 10),
+            scale: scale,
+            partScale: 0.2
+          ),
+
+          // RIGHT ARM
+          _part(
+            asset: _rightArmAsset(),
+            angle: rightArm,
+            position: const Offset(180, 120),
+            pivot: const Offset(25, 10),
+            scale: scale,
+            partScale: 0.2
           ),
         ],
       ),
