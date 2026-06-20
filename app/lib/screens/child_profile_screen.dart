@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../session_state.dart';
+import '../background_music_service.dart';
 
 class ChildProfileScreen extends StatefulWidget {
   const ChildProfileScreen({super.key});
@@ -195,6 +196,8 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                   _musicVolume = value;
                 });
                 _saveLocalVolume('music_volume', value);
+                // Apply immediately to background music
+                BackgroundMusicService.instance.setVolume(value);
               },
             ),
             const SizedBox(height: 8),

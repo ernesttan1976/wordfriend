@@ -42,6 +42,14 @@ class BackgroundMusicService {
     await _player.dispose();
   }
 
+  /// Set background music volume directly (0.0 - 1.0).
+  Future<void> setVolume(double value) async {
+    if (!_initialized) return;
+    _currentVolume = value.clamp(0.0, 1.0);
+    _preTtsVolume = _currentVolume;
+    await _player.setVolume(_currentVolume);
+  }
+
   /// Fade out and mute background music for TTS playback.
   Future<void> duckForTts({Duration duration = const Duration(milliseconds: 400)}) async {
     if (!_initialized) return;
