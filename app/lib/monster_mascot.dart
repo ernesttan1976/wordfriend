@@ -149,6 +149,14 @@ class _MonsterMascotState extends State<MonsterMascot>
               rightArm = clap;
             }
             break;
+          case MonsterPose.signInScreen:
+          case MonsterPose.wordListsScreen:
+          case MonsterPose.quizScreen:
+          case MonsterPose.quizCorrect:
+          case MonsterPose.quizWrong:
+          case MonsterPose.quizStatsScreen:
+            // These are resolved earlier via _resolvedPose()
+            break;
         }
 
             // Horizontal walking across full available width
