@@ -277,8 +277,8 @@ class _QuizScreenState extends State<QuizScreen> {
       appBar: AppBar(
         title: const Text('Listen & type quiz'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 200),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
