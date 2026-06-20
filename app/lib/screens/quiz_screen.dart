@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../api_client.dart';
 import '../models.dart';
 import '../session_state.dart';
+import '../monster_mascot.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key, required this.session});
@@ -254,6 +255,17 @@ class _QuizScreenState extends State<QuizScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SizedBox(
+              height: 180,
+              width: double.infinity,
+              child: Center(
+                child: MonsterMascot(
+                  size: 160,
+                  pose: MonsterPose.quizScreen,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             LinearProgressIndicator(
               value: ( (_index + 1) / widget.session.words.length),
             ),

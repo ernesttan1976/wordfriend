@@ -162,7 +162,7 @@ class _MonsterMascotState extends State<MonsterMascot>
             // Horizontal walking across full available width
             double dx = 0;
             bool faceRightNow = widget.facingRight;
-            if (pose == MonsterPose.walk) {
+            if (pose == MonsterPose.walk && constraints.hasBoundedWidth) {
               final travel = max(0, constraints.maxWidth - widget.size);
 
               // Ping-pong from left -> right -> left
