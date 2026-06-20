@@ -31,6 +31,7 @@ class _QuizScreenState extends State<QuizScreen> {
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _speaking = false;
+  MonsterPose _pose = MonsterPose.quizScreen;
 
   QuizWord get _currentWord => widget.session.words[_index];
 
@@ -39,6 +40,7 @@ class _QuizScreenState extends State<QuizScreen> {
     _hintLevel = 0;
     _visibleHints = [];
     _answerController.clear();
+    _pose = MonsterPose.quizScreen;
   }
 
   @override
@@ -123,6 +125,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
       final maxed = _attempts.length >= 3;
 
+      setState(() {
+        _pose = correct ? MonsterPose.quizCorrect : MonsterPose.quizWrong;
+      });
+
       if (correct || maxed) {
         Future.delayed(const Duration(milliseconds: 1200), () async {
           if (!mounted) return;
@@ -151,6 +157,15 @@ class _QuizScreenState extends State<QuizScreen> {
             );
             if (mounted) Navigator.of(context).pop();
           }
+        });
+      }
+      // If wrong but not maxed, return to normal quiz pose after a short delay
+      if (!correct && !maxed) {
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (!mounted) return;
+          setState(() {
+            _pose = MonsterPose.quizScreen;
+          });
         });
       }
     } on ApiException catch (e) {
@@ -259,10 +274,10 @@ class _QuizScreenState extends State<QuizScreen> {
               height: 180,
               width: double.infinity,
               child: Center(
-                child: MonsterMascot(
-                  size: 160,
-                  pose: MonsterPose.quizScreen,
-                ),
+              child: MonsterMascot(
+                size: 160,
+                pose: _pose,
+              ),
               ),
             ),
             const SizedBox(height: 16),

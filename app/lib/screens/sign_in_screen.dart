@@ -162,7 +162,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       right: 16,
                       child: MonsterMascot(
                         size: 120,
-                        pose: MonsterPose.idle,
+                        pose: MonsterPose.signInScreen,
                       ),
                     ),
                   ],

@@ -457,7 +457,7 @@ class _WordListsScreenState extends State<WordListsScreen> {
           right: 16,
           child: MonsterMascot(
             size: 120,
-            pose: MonsterPose.idle,
+            pose: MonsterPose.wordListsScreen,
           ),
         ),
       ],
