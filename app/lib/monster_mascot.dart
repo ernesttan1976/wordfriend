@@ -70,11 +70,12 @@ class _MonsterMascotState extends State<MonsterMascot>
   @override
   Widget build(BuildContext context) {
     final scale = widget.size / designSize;
-
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (_, __) {
-        final t = _controller.value * 2 * pi;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (_, __) {
+            final t = _controller.value * 2 * pi;
 
         final breath = 1 + sin(t * 1.2) * 0.02;
         final bodyBob = sin(t * 1.2) * 2 * scale;
@@ -86,8 +87,11 @@ class _MonsterMascotState extends State<MonsterMascot>
         double leftArm = 0;
         double rightArm = 0;
         double rootShakeX = 0;
+        double extraBob = 0;
 
-        switch (widget.pose) {
+            double bodyTilt = 0;
+
+            switch (widget.pose) {
           case MonsterPose.idle:
             leftArm = sin(t * 0.8) * 0.05;
             rightArm = -sin(t * 0.8) * 0.05;
@@ -99,39 +103,89 @@ class _MonsterMascotState extends State<MonsterMascot>
             rightArm = walkCycle * 0.5;
             break;
           case MonsterPose.wave:
+            // Stand on left leg, tilt body left, lift right leg slightly
+            leftLeg = 0;
+            rightLeg = -0.2;
+            bodyTilt = -0.15;
             rightArm = 3.1 - sin(t * 8) * 0.9;
             break;
           case MonsterPose.cry:
             rootShakeX = sin(t * 20) * 1.5 * scale;
             break;
           case MonsterPose.cheer:
-            leftArm = -1.2;
-            rightArm = 1.2;
+            // Jump cycle
+            final jumpWave = sin(t * 3);
+            final highJump = sin(t * 1.5) > 0; // alternate low/high
+            final jumpHeight = (highJump ? 18.0 : 10.0) * scale;
+
+            if (jumpWave > 0) {
+              // In air: arms up, legs apart
+              extraBob = -jumpWave * jumpHeight;
+              leftLeg = -0.6;
+              rightLeg = 0.6;
+              leftArm = -1.3;
+              rightArm = 1.3;
+            } else {
+              // Landing: feet together + clap clap
+              leftLeg = 0;
+              rightLeg = 0;
+
+              final clap = sin(t * 12) * 0.35;
+              leftArm = -clap;
+              rightArm = clap;
+            }
             break;
         }
 
-        return Transform.scale(
-          scaleX: widget.facingRight ? 1 : -1,
-          child: SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Transform.translate(
-                  offset: Offset(rootShakeX, bodyBob),
-                  child: _buildCharacter(
-                    scale,
-                    breath,
-                    leftLeg,
-                    rightLeg,
-                    leftArm,
-                    rightArm,
+            // Horizontal walking across full available width
+            double dx = 0;
+            bool faceRightNow = widget.facingRight;
+            if (widget.pose == MonsterPose.walk) {
+              final travel = max(0, constraints.maxWidth - widget.size);
+
+              // Ping-pong from left -> right -> left
+              final v = _controller.value; // 0..1
+              final goingRight = v < 0.5;
+              final localT = goingRight ? v * 2 : (v - 0.5) * 2;
+
+              dx = goingRight
+                  ? localT * travel
+                  : (1 - localT) * travel;
+
+              faceRightNow = goingRight;
+            }
+
+            return Transform.translate(
+              offset: Offset(dx, 0),
+              child: Transform.scale(
+                scaleX: faceRightNow ? 1 : -1,
+                child: SizedBox(
+                  width: widget.size,
+                  height: widget.size,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Transform.translate(
+                        offset: Offset(rootShakeX, bodyBob + extraBob),
+                        child: Transform.rotate(
+                          angle: bodyTilt,
+                          alignment: Alignment.center,
+                          child: _buildCharacter(
+                            scale,
+                            breath,
+                            leftLeg,
+                            rightLeg,
+                            leftArm,
+                            rightArm,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
