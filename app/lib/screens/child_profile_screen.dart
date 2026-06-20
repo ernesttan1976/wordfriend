@@ -19,8 +19,8 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
   String? _ttsVoice;
   List<String> _voices = [];
   bool _loadingVoices = false;
-  double _musicVolume = 1.0;
-  double _ttsVolume = 1.0;
+  double _musicVolume = 0.3;
+  double _ttsVolume = 0.8;
 
   @override
   void initState() {
@@ -131,8 +131,8 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
       appBar: AppBar(
         title: const Text('Child profile'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 50),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
