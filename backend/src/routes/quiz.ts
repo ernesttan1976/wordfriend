@@ -574,10 +574,10 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
 
   const allHints = [
     w.hint_letter_count,
+    similarWord,
+    maskedSentence,
     w.hint_first_last,
     w.hint_consonants,
-    maskedSentence,
-    similarWord,
   ].filter((h) => typeof h === 'string' && h.length > 0);
 
   const visibleHints = allHints.slice(0, safeLevel);
@@ -605,17 +605,37 @@ router.get('/stats', async (req: AuthRequest, res) => {
 
   const childId: string = childResult.rows[0].id;
 
+  // Scoring rules:
+  // - Correct on first try (no incorrect attempts for that word in session) = 1 point
+  // - Incorrect first, eventually correct (same word in same session) = 0.5 point
+  // - Never correct = 0 points
   const totalsResult = await pool.query(
-    `SELECT COUNT(*)::int AS total,
-            COALESCE(SUM(CASE WHEN qa.is_correct THEN 1 ELSE 0 END),0)::int AS correct
-       FROM quiz_attempts qa
-       JOIN quiz_sessions qs ON qa.quiz_session_id = qs.id
-      WHERE qs.child_id = $1`,
+    `WITH per_word AS (
+         SELECT
+           qa.quiz_session_id,
+           qa.word_id,
+           BOOL_OR(qa.is_correct) AS ever_correct,
+           BOOL_OR(NOT qa.is_correct) AS ever_incorrect
+         FROM quiz_attempts qa
+         JOIN quiz_sessions qs ON qa.quiz_session_id = qs.id
+         WHERE qs.child_id = $1
+         GROUP BY qa.quiz_session_id, qa.word_id
+       )
+       SELECT
+         COUNT(*)::int AS total_words,
+         COALESCE(SUM(
+           CASE
+             WHEN ever_correct AND NOT ever_incorrect THEN 1.0
+             WHEN ever_correct AND ever_incorrect THEN 0.5
+             ELSE 0.0
+           END
+         ), 0)::float AS score
+       FROM per_word`,
     [childId],
   );
 
-  const total = totalsResult.rows[0].total as number;
-  const correct = totalsResult.rows[0].correct as number;
+  const total = totalsResult.rows[0].total_words as number;
+  const correct = totalsResult.rows[0].score as number;
   const accuracyPercent = total > 0 ? Math.round((correct / total) * 100) : 0;
 
   const last7DaysResult = await pool.query(
