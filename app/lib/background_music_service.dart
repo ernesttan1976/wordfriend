@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:just_audio/just_audio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Simple background music service that loops through a fixed playlist.
 class BackgroundMusicService {
@@ -31,7 +32,12 @@ class BackgroundMusicService {
 
     await _player.setAudioSource(playlist);
     await _player.setLoopMode(LoopMode.all);
-    _currentVolume = 0.3;
+
+    // Load persisted volume (default 0.3 if not set)
+    final prefs = await SharedPreferences.getInstance();
+    _currentVolume = prefs.getDouble('music_volume') ?? 0.3;
+    _preTtsVolume = _currentVolume;
+
     await _player.setVolume(_currentVolume);
     await _player.play();
 
