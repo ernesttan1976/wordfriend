@@ -2,7 +2,19 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 
-enum MonsterPose { idle, walk, wave, cry, cheer }
+enum MonsterPose {
+  idle,
+  walk,
+  wave,
+  cry,
+  cheer,
+  signInScreen,
+  wordListsScreen,
+  quizScreen,
+  quizCorrect,
+  quizWrong,
+  quizStatsScreen,
+}
 
 class MonsterMascot extends StatefulWidget {
   final double size;
@@ -91,7 +103,9 @@ class _MonsterMascotState extends State<MonsterMascot>
 
             double bodyTilt = 0;
 
-            switch (widget.pose) {
+            final pose = _resolvedPose();
+
+            switch (pose) {
           case MonsterPose.idle:
             leftArm = sin(t * 0.8) * 0.05;
             rightArm = -sin(t * 0.8) * 0.05;
@@ -140,7 +154,7 @@ class _MonsterMascotState extends State<MonsterMascot>
             // Horizontal walking across full available width
             double dx = 0;
             bool faceRightNow = widget.facingRight;
-            if (widget.pose == MonsterPose.walk) {
+            if (pose == MonsterPose.walk) {
               final travel = max(0, constraints.maxWidth - widget.size);
 
               // Ping-pong from left -> right -> left
@@ -312,10 +326,11 @@ class _MonsterMascotState extends State<MonsterMascot>
   }
 
   String _eyeAsset() {
-    if (widget.pose == MonsterPose.cry) {
+    final pose = _resolvedPose();
+    if (pose == MonsterPose.cry) {
       return 'assets/character/monster_eyes_crying.png';
     }
-    if (widget.pose == MonsterPose.cheer) {
+    if (pose == MonsterPose.cheer) {
       return 'assets/character/monster_eyes_cheering.png';
     }
     switch (_eyeState) {
@@ -329,7 +344,8 @@ class _MonsterMascotState extends State<MonsterMascot>
   }
 
   String _mouthAsset() {
-    switch (widget.pose) {
+    final pose = _resolvedPose();
+    switch (pose) {
       case MonsterPose.cry:
         return 'assets/character/monster_mouth_open.png';
       case MonsterPose.cheer:
@@ -340,6 +356,13 @@ class _MonsterMascotState extends State<MonsterMascot>
         return 'assets/character/monster_mouth_neutral.png';
       case MonsterPose.idle:
         return 'assets/character/monster_mouth_smile.png';
+      case MonsterPose.signInScreen:
+      case MonsterPose.wordListsScreen:
+      case MonsterPose.quizScreen:
+      case MonsterPose.quizCorrect:
+      case MonsterPose.quizWrong:
+      case MonsterPose.quizStatsScreen:
+        return 'assets/character/monster_mouth_smile.png';
     }
   }
 
@@ -348,10 +371,35 @@ class _MonsterMascotState extends State<MonsterMascot>
   }
 
   String _rightArmAsset() {
-    if (widget.pose == MonsterPose.wave) {
+    final pose = _resolvedPose();
+    if (pose == MonsterPose.wave) {
       return 'assets/character/monster_arm_right_wave.png';
     }
     return 'assets/character/monster_arm_right_down.png';
+  }
+
+  MonsterPose _resolvedPose() {
+    final v = _controller.value;
+
+    switch (widget.pose) {
+      case MonsterPose.signInScreen:
+        // Alternate wave <-> idle
+        return v < 0.5 ? MonsterPose.wave : MonsterPose.idle;
+      case MonsterPose.wordListsScreen:
+        // Alternate walk <-> idle
+        return v < 0.5 ? MonsterPose.walk : MonsterPose.idle;
+      case MonsterPose.quizScreen:
+        return MonsterPose.walk;
+      case MonsterPose.quizCorrect:
+        return MonsterPose.cheer;
+      case MonsterPose.quizWrong:
+        return MonsterPose.cry;
+      case MonsterPose.quizStatsScreen:
+        // Alternate wave <-> cheer
+        return v < 0.5 ? MonsterPose.wave : MonsterPose.cheer;
+      default:
+        return widget.pose;
+    }
   }
 }
 
