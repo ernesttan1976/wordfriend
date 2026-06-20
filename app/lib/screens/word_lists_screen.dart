@@ -9,6 +9,7 @@ import 'word_list_detail_screen.dart';
 import 'quiz_stats_screen.dart';
 import 'quiz_screen.dart';
 import '../monster_mascot.dart';
+import 'mascot_test_screen.dart';
 
 class WordListsScreen extends StatefulWidget {
   const WordListsScreen({super.key});
@@ -350,6 +351,17 @@ class _WordListsScreenState extends State<WordListsScreen> {
                 MaterialPageRoute(builder: (_) => const ChildProfileScreen()),
               );
               await _refresh();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.pets),
+            tooltip: 'Mascot test',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MascotTestScreen(),
+                ),
+              );
             },
           ),
           IconButton(
