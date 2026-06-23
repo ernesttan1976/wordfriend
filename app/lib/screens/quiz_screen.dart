@@ -12,6 +12,7 @@ import '../models.dart';
 import '../session_state.dart';
 import '../monster_mascot.dart';
 import '../background_music_service.dart';
+import '../widgets/quiz_keyboard.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key, required this.session});
@@ -347,89 +348,22 @@ class _QuizScreenState extends State<QuizScreen> {
     super.dispose();
   }
 
-  Widget _buildKeyboardKey({
-    required String label,
-    required VoidCallback onPressed,
-    bool primary = false,
-  }) {
-    final child = Text(label, style: const TextStyle(fontSize: 16));
-    return SizedBox(
-      width: 48,
-      height: 44,
-      child: primary
-          ? FilledButton(
-              onPressed: onPressed,
-              child: child,
-            )
-          : OutlinedButton(
-              onPressed: onPressed,
-              child: child,
-            ),
-    );
-  }
-
-  Widget _buildKeyboard() {
-    const keys = <String>[
-      'q','w','e','r','t','y','u','i','o','p',
-      'a','s','d','f','g','h','j','k','l',
-      'z','x','c','v','b','n','m',
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 6,
-          runSpacing: 8,
-          children: [
-            for (final k in keys)
-              _buildKeyboardKey(
-                label: k,
-                onPressed: () => _appendLetter(k),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: 10,
-          children: [
-            SizedBox(
-              width: 120,
-              height: 44,
-              child: OutlinedButton.icon(
-                onPressed: _answerController.text.isEmpty ? null : _backspace,
-                icon: const Icon(Icons.backspace_outlined, size: 18),
-                label: const Text('Back'),
-              ),
-            ),
-            SizedBox(
-              width: 120,
-              height: 44,
-              child: FilledButton.icon(
-                onPressed: _submitting ? null : _submit,
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('Submit'),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final keyboardHeight = screenHeight / 3;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Listen & type quiz'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 200),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, keyboardHeight + 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
             SizedBox(
               height: 180,
               width: double.infinity,
@@ -473,8 +407,6 @@ class _QuizScreenState extends State<QuizScreen> {
               contextMenuBuilder: (context, editableTextState) => const SizedBox.shrink(),
             ),
             const SizedBox(height: 16),
-            _buildKeyboard(),
-            const SizedBox(height: 16),
             const Text('Attempts (max 3):'),
             const SizedBox(height: 8),
             for (final attempt in _attempts)
@@ -500,8 +432,20 @@ class _QuizScreenState extends State<QuizScreen> {
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text('Hint ${i + 1}: ${_visibleHints[i]}'),
               ),
-          ],
-        ),
+              ],
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: QuizKeyboard(
+              onLetter: _appendLetter,
+              onBackspace: _backspace,
+              onEnter: _submit,
+              enableBackspace: _answerController.text.isNotEmpty && !_submitting,
+              enableEnter: !_submitting,
+            ),
+          ),
+        ],
       ),
     );
   }
