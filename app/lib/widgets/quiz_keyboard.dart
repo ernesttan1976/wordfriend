@@ -43,6 +43,7 @@ class QuizKeyboard extends StatelessWidget {
     );
   }
 
+
   Widget _row(List<String> letters) {
     return Row(
       children: [
@@ -74,19 +75,19 @@ class QuizKeyboard extends StatelessWidget {
             // Row 2 with half-space padding on both sides
             Row(
               children: [
-                const Spacer(flex: 1),
+                const Spacer(),
                 for (final l in 'asdfghjkl'.split(''))
                   _letterKey(context, l),
-                const Spacer(flex: 1),
+                const Spacer(),
               ],
             ),
             // Row 3 with full-space padding on both sides
             Row(
               children: [
-                const Spacer(flex: 2),
+                const Spacer(),
                 for (final l in 'zxcvbnm'.split(''))
                   _letterKey(context, l),
-                const Spacer(flex: 2),
+                const Spacer(),
               ],
             ),
             Row(
@@ -98,6 +99,11 @@ class QuizKeyboard extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(4),
                         child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            shape: const RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(Radius.circular(4)),
+                            ),
+                          ),
                           onPressed: key == 'bksp'
                               ? (enableBackspace ? onBackspace : null)
                               : key == 'enter'
