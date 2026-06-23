@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 import 'models.dart';
@@ -13,6 +14,27 @@ class SessionState extends ChangeNotifier {
   String? _token;
   bool _loading = false;
   String? _error;
+
+  static const _tokenKey = 'auth_token';
+
+  // Attempt to restore a previously saved auth token on startup.
+  Future<void> restoreSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedToken = prefs.getString(_tokenKey);
+    if (savedToken == null) return;
+
+    _token = savedToken;
+    api.updateToken(_token);
+    notifyListeners();
+
+    // Try loading child profile silently.
+    try {
+      await loadChildProfile();
+    } catch (_) {
+      // If token is invalid, clear it.
+      await signOut();
+    }
+  }
 
   UserInfo? get user => _user;
   ChildProfile? get child => _child;
@@ -39,6 +61,8 @@ class SessionState extends ChangeNotifier {
       _token = login.token;
       _user = login.user;
       api.updateToken(_token);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tokenKey, _token!);
     } on ApiException catch (e) {
       _setError('Login failed: HTTP ${e.statusCode}');
       rethrow;
@@ -101,6 +125,9 @@ class SessionState extends ChangeNotifier {
     _child = null;
     _token = null;
     api.updateToken(null);
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove(_tokenKey);
+    });
     notifyListeners();
   }
 
