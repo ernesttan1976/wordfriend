@@ -94,26 +94,21 @@ class QuizKeyboard extends StatelessWidget {
               children: [
                 for (final key in ['bksp', 'space', 'enter'])
                   Expanded(
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(4)),
-                            ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(4)),
                           ),
-                          onPressed: key == 'bksp'
-                              ? (enableBackspace ? onBackspace : null)
-                              : key == 'enter'
-                                  ? (enableEnter ? onEnter : null)
-                                  : () => onLetter(' '),
-                          child: Text(
-                            key == 'space'
-                                ? 'space'
-                                : key,
-                          ),
+                        ),
+                        onPressed: key == 'bksp'
+                            ? (enableBackspace ? onBackspace : null)
+                            : key == 'enter'
+                                ? (enableEnter ? onEnter : null)
+                                : () => onLetter(' '),
+                        child: Text(
+                          key == 'space' ? 'space' : key,
                         ),
                       ),
                     ),
