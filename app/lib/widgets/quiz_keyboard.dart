@@ -64,39 +64,54 @@ class QuizKeyboard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Row(children: [for (final l in 'qwertyuiop'.split('')) _letterKey(context, l)]),
-            Row(children: [for (final l in 'asdfghjkl'.split('')) _letterKey(context, l)]),
-            Row(children: [for (final l in 'zxcvbnm'.split('')) _letterKey(context, l)]),
+            // Row 1
             Row(
               children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: ElevatedButton(
-                      onPressed: enableBackspace ? onBackspace : null,
-                      child: const Text('Backspace'),
+                for (final l in 'qwertyuiop'.split(''))
+                  _letterKey(context, l),
+              ],
+            ),
+            // Row 2 with half-space padding on both sides
+            Row(
+              children: [
+                const Spacer(flex: 1),
+                for (final l in 'asdfghjkl'.split(''))
+                  _letterKey(context, l),
+                const Spacer(flex: 1),
+              ],
+            ),
+            // Row 3 with full-space padding on both sides
+            Row(
+              children: [
+                const Spacer(flex: 2),
+                for (final l in 'zxcvbnm'.split(''))
+                  _letterKey(context, l),
+                const Spacer(flex: 2),
+              ],
+            ),
+            Row(
+              children: [
+                for (final key in ['bksp', 'space', 'enter'])
+                  Expanded(
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: ElevatedButton(
+                          onPressed: key == 'bksp'
+                              ? (enableBackspace ? onBackspace : null)
+                              : key == 'enter'
+                                  ? (enableEnter ? onEnter : null)
+                                  : () => onLetter(' '),
+                          child: Text(
+                            key == 'space'
+                                ? 'space'
+                                : key,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: ElevatedButton(
-                      onPressed: () => onLetter(' '),
-                      child: const Text('Space'),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: ElevatedButton(
-                      onPressed: enableEnter ? onEnter : null,
-                      child: const Text('Enter'),
-                    ),
-                  ),
-                ),
               ],
             ),
           ],
