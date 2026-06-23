@@ -120,14 +120,13 @@ class SessionState extends ChangeNotifier {
     }
   }
 
-  void signOut() {
+  Future<void> signOut() async {
     _user = null;
     _child = null;
     _token = null;
     api.updateToken(null);
-    SharedPreferences.getInstance().then((prefs) {
-      prefs.remove(_tokenKey);
-    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
     notifyListeners();
   }
 
