@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:typed_data';
+import 'dart:math';
+import 'dart:async';
 import 'package:provider/provider.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
@@ -22,6 +23,7 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
+  late final List<QuizWord> _words;
   int _index = 0;
   final TextEditingController _answerController = TextEditingController();
   bool _submitting = false;
@@ -29,17 +31,20 @@ class _QuizScreenState extends State<QuizScreen> {
   final List<String> _attempts = [];
   int _hintLevel = 0;
   List<String> _visibleHints = [];
+  Timer? _hintCooldownTimer;
+  int _hintCooldownSecondsRemaining = 0;
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _speaking = false;
   MonsterPose _pose = MonsterPose.quizScreen;
 
-  QuizWord get _currentWord => widget.session.words[_index];
+  QuizWord get _currentWord => _words[_index];
 
   void _resetForNextWord() {
     _attempts.clear();
     _hintLevel = 0;
     _visibleHints = [];
+    _cancelHintCooldown();
     _answerController.clear();
     _pose = MonsterPose.quizScreen;
   }
@@ -47,9 +52,75 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Randomize the quiz sequence once per quiz run.
+    _words = List<QuizWord>.of(widget.session.words)..shuffle(Random.secure());
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakCurrentWord();
     });
+  }
+
+  void _cancelHintCooldown() {
+    _hintCooldownTimer?.cancel();
+    _hintCooldownTimer = null;
+    _hintCooldownSecondsRemaining = 0;
+  }
+
+  void _startHintCooldown({int seconds = 10}) {
+    _hintCooldownTimer?.cancel();
+    setState(() {
+      _hintCooldownSecondsRemaining = seconds;
+    });
+
+    _hintCooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+
+      if (_hintCooldownSecondsRemaining <= 1) {
+        setState(() {
+          _hintCooldownSecondsRemaining = 0;
+        });
+        t.cancel();
+        _hintCooldownTimer = null;
+        return;
+      }
+
+      setState(() {
+        _hintCooldownSecondsRemaining -= 1;
+      });
+    });
+  }
+
+  void _appendLetter(String letter) {
+    if (_submitting) return;
+
+    final next = '${_answerController.text}$letter';
+    _answerController.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+
+    // Rebuild so keyboard buttons (Back) reflect current text.
+    if (mounted) setState(() {});
+  }
+
+  void _backspace() {
+    if (_submitting) return;
+
+    final text = _answerController.text;
+    if (text.isEmpty) return;
+
+    final next = text.substring(0, text.length - 1);
+    _answerController.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: next.length),
+    );
+
+    // Rebuild so keyboard buttons (Back) reflect current text.
+    if (mounted) setState(() {});
   }
 
   Future<void> _speakCurrentWord() async {
@@ -145,7 +216,7 @@ class _QuizScreenState extends State<QuizScreen> {
         Future.delayed(const Duration(milliseconds: 1200), () async {
           if (!mounted) return;
 
-          if (_index + 1 < widget.session.words.length) {
+          if (_index + 1 < _words.length) {
             setState(() {
               _index += 1;
               _resetForNextWord();
@@ -157,7 +228,7 @@ class _QuizScreenState extends State<QuizScreen> {
               builder: (context) => AlertDialog(
                 title: const Text('Quiz complete'),
                 content: Text(
-                  'You got $_correctCount out of ${widget.session.words.length} correct.',
+                  'You got $_correctCount out of ${_words.length} correct.',
                 ),
                 actions: [
                   TextButton(
@@ -228,6 +299,7 @@ class _QuizScreenState extends State<QuizScreen> {
 
   void _requestHint() {
     if (_hintLevel >= 5) return;
+    if (_hintCooldownSecondsRemaining > 0) return;
 
     final api = context.read<SessionState>().api;
     final nextLevel = _hintLevel + 1;
@@ -248,6 +320,9 @@ class _QuizScreenState extends State<QuizScreen> {
         // Backend returns the full hints array; keep UI in sync
         _visibleHints = hints;
       });
+
+      // After each successful hint, enforce a short delay before the next.
+      if (mounted) _startHintCooldown(seconds: 10);
     }).catchError((error) {
       if (!mounted) return;
 
@@ -266,9 +341,82 @@ class _QuizScreenState extends State<QuizScreen> {
   @override
   void dispose() {
     _answerController.dispose();
+    _hintCooldownTimer?.cancel();
     _flutterTts.stop();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Widget _buildKeyboardKey({
+    required String label,
+    required VoidCallback onPressed,
+    bool primary = false,
+  }) {
+    final child = Text(label, style: const TextStyle(fontSize: 16));
+    return SizedBox(
+      width: 48,
+      height: 44,
+      child: primary
+          ? FilledButton(
+              onPressed: onPressed,
+              child: child,
+            )
+          : OutlinedButton(
+              onPressed: onPressed,
+              child: child,
+            ),
+    );
+  }
+
+  Widget _buildKeyboard() {
+    const keys = <String>[
+      'q','w','e','r','t','y','u','i','o','p',
+      'a','s','d','f','g','h','j','k','l',
+      'z','x','c','v','b','n','m',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 6,
+          runSpacing: 8,
+          children: [
+            for (final k in keys)
+              _buildKeyboardKey(
+                label: k,
+                onPressed: () => _appendLetter(k),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 10,
+          children: [
+            SizedBox(
+              width: 120,
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: _answerController.text.isEmpty ? null : _backspace,
+                icon: const Icon(Icons.backspace_outlined, size: 18),
+                label: const Text('Back'),
+              ),
+            ),
+            SizedBox(
+              width: 120,
+              height: 44,
+              child: FilledButton.icon(
+                onPressed: _submitting ? null : _submit,
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('Submit'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   @override
@@ -292,11 +440,11 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             const SizedBox(height: 16),
             LinearProgressIndicator(
-              value: ( (_index + 1) / widget.session.words.length),
+              value: ((_index + 1) / _words.length),
             ),
             const SizedBox(height: 16),
             Text(
-              'Word ${_index + 1} of ${widget.session.words.length}',
+              'Word ${_index + 1} of ${_words.length}',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 24),
@@ -314,19 +462,18 @@ class _QuizScreenState extends State<QuizScreen> {
                 labelText: 'Your spelling',
                 border: OutlineInputBorder(),
               ),
-              onSubmitted: (_) => _submitting ? null : _submit(),
+              // Block OS keyboard, spellcheck, suggestions, and voice input.
+              readOnly: true,
+              showCursor: true,
+              enableInteractiveSelection: false,
+              autocorrect: false,
+              enableSuggestions: false,
+              textCapitalization: TextCapitalization.none,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              contextMenuBuilder: (context, editableTextState) => const SizedBox.shrink(),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _submitting ? null : _submit,
-              child: _submitting
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Submit'),
-            ),
+            _buildKeyboard(),
             const SizedBox(height: 16),
             const Text('Attempts (max 3):'),
             const SizedBox(height: 8),
@@ -341,8 +488,12 @@ class _QuizScreenState extends State<QuizScreen> {
             const SizedBox(height: 12),
             if (_attempts.length < 3)
               TextButton(
-                onPressed: _requestHint,
-                child: const Text('Show hint'),
+                onPressed: (_hintCooldownSecondsRemaining > 0) ? null : _requestHint,
+                child: Text(
+                  _hintCooldownSecondsRemaining > 0
+                      ? 'Show hint (${_hintCooldownSecondsRemaining}s)'
+                      : 'Show hint',
+                ),
               ),
             for (int i = 0; i < _visibleHints.length; i++)
               Padding(
