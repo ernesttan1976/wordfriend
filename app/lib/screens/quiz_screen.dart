@@ -629,6 +629,103 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openAudioSettings,
+        child: const Icon(Icons.volume_up),
+      ),
+    );
+  }
+
+  Future<void> _openAudioSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    double musicVolume = prefs.getDouble('music_volume') ?? 0.5;
+    double ttsVolume = prefs.getDouble('tts_volume') ?? 1.0;
+    double ttsRate = prefs.getDouble('tts_rate') ?? 0.5;
+    double ttsPitch = prefs.getDouble('tts_pitch') ?? 1.0;
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Audio Settings'),
+          content: StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Music Volume'),
+                    ),
+                    Slider(
+                      value: musicVolume,
+                      min: 0,
+                      max: 1,
+                      onChanged: (v) async {
+                        setStateDialog(() => musicVolume = v);
+                        await prefs.setDouble('music_volume', v);
+                        BackgroundMusicService().setVolume(v);
+                      },
+                    ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('TTS Volume'),
+                    ),
+                    Slider(
+                      value: ttsVolume,
+                      min: 0,
+                      max: 1,
+                      onChanged: (v) async {
+                        setStateDialog(() => ttsVolume = v);
+                        await prefs.setDouble('tts_volume', v);
+                        await _flutterTts.setVolume(v);
+                      },
+                    ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Speech Rate'),
+                    ),
+                    Slider(
+                      value: ttsRate,
+                      min: 0.1,
+                      max: 1.0,
+                      onChanged: (v) async {
+                        setStateDialog(() => ttsRate = v);
+                        await prefs.setDouble('tts_rate', v);
+                        await _flutterTts.setSpeechRate(v);
+                      },
+                    ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Pitch'),
+                    ),
+                    Slider(
+                      value: ttsPitch,
+                      min: 0.5,
+                      max: 2.0,
+                      onChanged: (v) async {
+                        setStateDialog(() => ttsPitch = v);
+                        await prefs.setDouble('tts_pitch', v);
+                        await _flutterTts.setPitch(v);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
