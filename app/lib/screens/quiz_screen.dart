@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'dart:async';
 import 'package:provider/provider.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api_client.dart';
 import '../models.dart';
@@ -27,6 +27,7 @@ class _QuizScreenState extends State<QuizScreen> {
   late final List<QuizWord> _words;
   int _index = 0;
   final TextEditingController _answerController = TextEditingController();
+  final FocusNode _answerFocusNode = FocusNode();
   bool _submitting = false;
   int _correctCount = 0;
   final List<String> _attempts = [];
@@ -34,7 +35,6 @@ class _QuizScreenState extends State<QuizScreen> {
   List<String> _visibleHints = [];
   Timer? _hintCooldownTimer;
   int _hintCooldownSecondsRemaining = 0;
-  final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _speaking = false;
   MonsterPose _pose = MonsterPose.quizScreen;
@@ -58,8 +58,20 @@ class _QuizScreenState extends State<QuizScreen> {
     // Randomize the quiz sequence once per quiz run.
     _words = List<QuizWord>.of(widget.session.words)..shuffle(Random.secure());
 
+    // Mute background music for the duration of the quiz.
+    BackgroundMusicService.instance.duckForTts(
+      duration: Duration.zero,
+    );
+
+    // TTS parameters are configured per word in _speakCurrentWord().
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakCurrentWord();
+      _initFabPosition();
+    });
+
+    _answerFocusNode.addListener(() {
+      if (mounted) setState(() {});
     });
   }
 
@@ -67,6 +79,52 @@ class _QuizScreenState extends State<QuizScreen> {
     _hintCooldownTimer?.cancel();
     _hintCooldownTimer = null;
     _hintCooldownSecondsRemaining = 0;
+  }
+
+  @override
+  void dispose() {
+    // Restore background music when leaving the quiz.
+    BackgroundMusicService.instance.restoreAfterTts(
+      duration: Duration.zero,
+    );
+    _audioPlayer.dispose();
+    _answerController.dispose();
+    _answerFocusNode.dispose();
+    _cancelHintCooldown();
+    super.dispose();
+  }
+
+  Offset? _fabOffset;
+
+  Future<void> _initFabPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dx = prefs.getDouble('quiz_fab_dx');
+    final dy = prefs.getDouble('quiz_fab_dy');
+
+    if (dx != null && dy != null) {
+      setState(() {
+        _fabOffset = Offset(dx, dy);
+      });
+      return;
+    }
+
+    final size = MediaQuery.of(context).size;
+    const fabSize = 56.0;
+    const margin = 16.0;
+
+    setState(() {
+      _fabOffset = Offset(
+        size.width - fabSize - margin,
+        size.height * 0.2,
+      );
+    });
+  }
+
+  Future<void> _persistFabPosition() async {
+    if (_fabOffset == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('quiz_fab_dx', _fabOffset!.dx);
+    await prefs.setDouble('quiz_fab_dy', _fabOffset!.dy);
   }
 
   void _startHintCooldown({int seconds = 10}) {
@@ -137,37 +195,32 @@ class _QuizScreenState extends State<QuizScreen> {
     });
 
     try {
-      // Fade out background music while TTS plays
-      await BackgroundMusicService.instance.duckForTts();
+      // Pause background music while TTS plays
+      await BackgroundMusicService.instance.pause();
 
       await _audioPlayer.stop();
-      await _flutterTts.stop();
 
-      if (child.ttsEngine == 'native') {
-        await _flutterTts.awaitSpeakCompletion(true);
-        await _flutterTts.speak(_currentWord.spelling);
-      } else {
-        final bytes = await sessionState.api.postBytes(
-          '/tts',
-          body: {
-            'text': _currentWord.spelling,
-            'voice': child.ttsVoice,
-          },
-        );
+      // Always use backend (OpenAI) TTS
+      final bytes = await sessionState.api.postBytes(
+        '/tts',
+        body: {
+          'text': _currentWord.spelling,
+          'voice': child.ttsVoice,
+        },
+      );
 
-        // Write to temp file to avoid Android data URI issues
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
-        await file.writeAsBytes(bytes, flush: true);
+      // Write to temp file to avoid Android data URI issues
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
+      await file.writeAsBytes(bytes, flush: true);
 
-        await _audioPlayer.setAudioSource(AudioSource.file(file.path));
-        await _audioPlayer.play();
+      await _audioPlayer.setAudioSource(AudioSource.file(file.path));
+      await _audioPlayer.play();
 
-        // Wait until playback completes
-        await _audioPlayer.processingStateStream
-            .firstWhere((state) => state == ProcessingState.completed);
-      }
+      // Wait until playback completes
+      await _audioPlayer.processingStateStream
+          .firstWhere((state) => state == ProcessingState.completed);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -175,8 +228,8 @@ class _QuizScreenState extends State<QuizScreen> {
         );
       }
     } finally {
-      // Restore background music after TTS completes or fails
-      await BackgroundMusicService.instance.restoreAfterTts();
+      // Resume background music after TTS completes or fails
+      await BackgroundMusicService.instance.resume();
 
       if (mounted) {
         setState(() {
@@ -414,12 +467,10 @@ class _QuizScreenState extends State<QuizScreen> {
     );
 
     if (confirmed != true || !mounted) {
-      commentController.dispose();
       return;
     }
 
     final comment = commentController.text.trim();
-    commentController.dispose();
 
     setState(() {
       _regenerating = true;
@@ -474,27 +525,27 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   @override
-  void dispose() {
-    _answerController.dispose();
-    _hintCooldownTimer?.cancel();
-    _flutterTts.stop();
-    _audioPlayer.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final keyboardHeight = screenHeight / 3;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    const keyboardHeight = 220.0; // fixed custom keyboard height
+    final showKeyboard = _answerFocusNode.hasFocus;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Listen & type quiz'),
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, keyboardHeight + 16),
-            child: Column(
+      body: GestureDetector(
+        onTap: () => _answerFocusNode.unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                (showKeyboard ? keyboardHeight : 0) + bottomInset + 16,
+              ),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SizedBox(
@@ -533,11 +584,11 @@ class _QuizScreenState extends State<QuizScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _answerController,
+                  focusNode: _answerFocusNode,
                   decoration: const InputDecoration(
                     labelText: 'Your spelling',
                     border: OutlineInputBorder(),
                   ),
-                  // Block OS keyboard, spellcheck, suggestions, and voice input.
                   readOnly: true,
                   showCursor: true,
                   enableInteractiveSelection: false,
@@ -548,6 +599,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       const SpellCheckConfiguration.disabled(),
                   contextMenuBuilder: (context, editableTextState) =>
                       const SizedBox.shrink(),
+                  onTap: () => _answerFocusNode.requestFocus(),
                 ),
                 const SizedBox(height: 16),
                 const Text('Attempts (max 3):'),
@@ -580,19 +632,108 @@ class _QuizScreenState extends State<QuizScreen> {
               ],
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: QuizKeyboard(
-              onLetter: _appendLetter,
-              onBackspace: _backspace,
-              onEnter: _submit,
-              enableBackspace:
-                  _answerController.text.isNotEmpty && !_submitting,
-              enableEnter: !_submitting,
-            ),
-          ),
-        ],
+            if (showKeyboard)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: QuizKeyboard(
+                  onLetter: _appendLetter,
+                  onBackspace: _backspace,
+                  onEnter: _submit,
+                  enableBackspace:
+                      _answerController.text.isNotEmpty && !_submitting,
+                  enableEnter: !_submitting,
+                ),
+              ),
+            if (_fabOffset != null)
+              Positioned(
+                left: _fabOffset!.dx,
+                top: _fabOffset!.dy,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    setState(() {
+                      _fabOffset = Offset(
+                        (_fabOffset!.dx + details.delta.dx)
+                            .clamp(0.0,
+                                MediaQuery.of(context).size.width - 56),
+                        (_fabOffset!.dy + details.delta.dy)
+                            .clamp(0.0,
+                                MediaQuery.of(context).size.height - 56),
+                      );
+                    });
+                  },
+                  onPanEnd: (_) => _persistFabPosition(),
+                  child: FloatingActionButton(
+                    onPressed: _openAudioSettings,
+                    child: const Icon(Icons.volume_up),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Future<void> _openAudioSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    double musicVolume = prefs.getDouble('music_volume') ?? 0.5;
+    double ttsVolume = prefs.getDouble('tts_volume') ?? 1.0;
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Audio Settings'),
+          content: StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Music Volume'),
+                    ),
+                    Slider(
+                      value: musicVolume,
+                      min: 0,
+                      max: 1,
+                      onChanged: (v) async {
+                        setStateDialog(() => musicVolume = v);
+                        await prefs.setDouble('music_volume', v);
+                        await BackgroundMusicService.instance.updateVolume(v);
+                      },
+                    ),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('TTS Volume'),
+                    ),
+                    Slider(
+                      value: ttsVolume,
+                      min: 0,
+                      max: 1,
+                      onChanged: (v) async {
+                        setStateDialog(() => ttsVolume = v);
+                        await prefs.setDouble('tts_volume', v);
+                        await _audioPlayer.setVolume(v);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -594,15 +594,28 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
     similarWord = w.hint_similar;
   }
 
-  const allHints = [
+  // Explicit progressive order:
+  // 1: letter count (deterministic)
+  // 2: similar word (AI)
+  // 3: masked sentence (AI)
+  // 4: first + last letter (deterministic)
+  // 5: consonants (deterministic)
+  const orderedHints: (string | null)[] = [
     w.hint_letter_count,
     similarWord,
     maskedSentence,
     w.hint_first_last,
     w.hint_consonants,
-  ].filter((h) => typeof h === 'string' && h.length > 0);
+  ];
 
-  const visibleHints = allHints.slice(0, safeLevel);
+  const visibleHints: string[] = [];
+
+  for (let i = 0; i < safeLevel && i < orderedHints.length; i++) {
+    const h = orderedHints[i];
+    if (typeof h === 'string' && h.length > 0) {
+      visibleHints.push(h);
+    }
+  }
 
   res.json({ hints: visibleHints });
 });

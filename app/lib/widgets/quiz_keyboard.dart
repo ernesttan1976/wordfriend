@@ -16,26 +16,24 @@ class QuizKeyboard extends StatelessWidget {
   final bool enableBackspace;
   final bool enableEnter;
 
-  Widget _letterKey(BuildContext context, String letter) {
-    return Expanded(
-      child: AspectRatio(
-        aspectRatio: 1,
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: InkWell(
-            onTap: () => onLetter(letter),
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                letter,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 18),
-              ),
+  Widget _letterKey(String letter) {
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: InkWell(
+          onTap: () => onLetter(letter),
+          borderRadius: BorderRadius.circular(999),
+          child: Container(
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              letter,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 18),
             ),
           ),
         ),
@@ -47,7 +45,7 @@ class QuizKeyboard extends StatelessWidget {
   Widget _row(List<String> letters) {
     return Row(
       children: [
-        for (final l in letters) _letterKey(null as BuildContext, l),
+        for (final l in letters) _letterKey(l),
       ],
     );
   }
@@ -65,31 +63,9 @@ class QuizKeyboard extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            // Row 1
-            Row(
-              children: [
-                for (final l in 'qwertyuiop'.split(''))
-                  _letterKey(context, l),
-              ],
-            ),
-            // Row 2 with half-space padding on both sides
-            Row(
-              children: [
-                const Spacer(),
-                for (final l in 'asdfghjkl'.split(''))
-                  _letterKey(context, l),
-                const Spacer(),
-              ],
-            ),
-            // Row 3 with full-space padding on both sides
-            Row(
-              children: [
-                const Spacer(),
-                for (final l in 'zxcvbnm'.split(''))
-                  _letterKey(context, l),
-                const Spacer(),
-              ],
-            ),
+            _buildLetterRow('qwertyuiop'.split(''), leadingEmpty: 0),
+            _buildLetterRow('asdfghjkl'.split(''), leadingEmpty: 0.5),
+            _buildLetterRow('zxcvbnm'.split(''), leadingEmpty: 1),
             Row(
               children: [
                 for (final key in ['bksp', 'space', 'enter'])
@@ -118,6 +94,24 @@ class QuizKeyboard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLetterRow(List<String> letters,
+      {required double leadingEmpty}) {
+    // 10 equal slots per row to keep all letter keys same size
+    const totalSlots = 10;
+    final leadingSlots = (leadingEmpty * 1).round();
+    final trailingSlots = totalSlots - letters.length - leadingSlots;
+
+    return Row(
+      children: [
+        for (int i = 0; i < leadingSlots; i++)
+          const Expanded(child: SizedBox()),
+        for (final l in letters) Expanded(child: _letterKey(l)),
+        for (int i = 0; i < trailingSlots; i++)
+          const Expanded(child: SizedBox()),
+      ],
     );
   }
 }

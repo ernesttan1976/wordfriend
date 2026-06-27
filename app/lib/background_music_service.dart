@@ -14,6 +14,8 @@ class BackgroundMusicService {
   bool _initialized = false;
   double _currentVolume = 0.3;
   double _preTtsVolume = 0.3;
+  bool _isMuted = false;
+  double _lastNonZeroVolume = 0.3;
 
   Future<void> initAndPlay() async {
     if (_initialized) return;
@@ -37,6 +39,11 @@ class BackgroundMusicService {
     final prefs = await SharedPreferences.getInstance();
     _currentVolume = prefs.getDouble('music_volume') ?? 0.3;
     _preTtsVolume = _currentVolume;
+    _isMuted = prefs.getBool('music_muted') ?? false;
+    if (_isMuted) {
+      _lastNonZeroVolume = _currentVolume == 0 ? 0.3 : _currentVolume;
+      _currentVolume = 0.0;
+    }
 
     await _player.setVolume(_currentVolume);
     await _player.play();
@@ -48,18 +55,53 @@ class BackgroundMusicService {
     await _player.dispose();
   }
 
+  Future<void> pause() async {
+    if (_initialized) {
+      await _player.pause();
+    }
+  }
+
+  Future<void> resume() async {
+    if (_initialized) {
+      await _player.play();
+    }
+  }
+
   /// Set background music volume directly (0.0 - 1.0).
   Future<void> updateVolume(double value) async {
-    _currentVolume = value.clamp(0.0, 1.0);
+    final clamped = value.clamp(0.0, 1.0);
+    _currentVolume = clamped;
     _preTtsVolume = _currentVolume;
 
-    if (_initialized) {
+    if (clamped > 0) {
+      _lastNonZeroVolume = clamped;
+      _isMuted = false;
+    }
+
+    await _player.setVolume(_isMuted ? 0.0 : _currentVolume);
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('music_volume', _currentVolume);
+    await prefs.setBool('music_muted', _isMuted);
+  }
+
+  Future<void> toggleMute() async {
+    _isMuted = !_isMuted;
+
+    if (_isMuted) {
+      _lastNonZeroVolume = _currentVolume == 0 ? _lastNonZeroVolume : _currentVolume;
+      await _player.setVolume(0.0);
+    } else {
+      _currentVolume = _lastNonZeroVolume.clamp(0.0, 1.0);
       await _player.setVolume(_currentVolume);
     }
 
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('music_muted', _isMuted);
     await prefs.setDouble('music_volume', _currentVolume);
   }
+
+  bool get isMuted => _isMuted;
 
   /// Fade out and mute background music for TTS playback.
   Future<void> duckForTts({Duration duration = const Duration(milliseconds: 400)}) async {

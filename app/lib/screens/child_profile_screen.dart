@@ -22,6 +22,9 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
   bool _loadingVoices = false;
   double _musicVolume = 0.1;
   double _ttsVolume = 1.0;
+  double _ttsRate = 0.5;
+  double _ttsPitch = 1.0;
+  bool _musicMuted = false;
 
   @override
   void initState() {
@@ -50,6 +53,9 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
     setState(() {
       _musicVolume = prefs.getDouble('music_volume') ?? 1.0;
       _ttsVolume = prefs.getDouble('tts_volume') ?? 1.0;
+      _ttsRate = prefs.getDouble('tts_rate') ?? 0.5;
+      _ttsPitch = prefs.getDouble('tts_pitch') ?? 1.0;
+      _musicMuted = prefs.getBool('music_muted') ?? false;
     });
   }
 
@@ -74,6 +80,12 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
 
     try {
       await session.saveChildProfile(age: age, theme: _theme);
+
+      // Persist TTS engine/voice together with profile
+      await session.updateTtsSettings(
+        engine: _ttsEngine,
+        voice: _ttsEngine == 'openai' ? _ttsVoice : null,
+      );
     } catch (_) {
       // error is stored in session
     } finally {
@@ -185,18 +197,38 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
             ),
             const SizedBox(height: 16),
             const Text('Music Volume'),
-            Slider(
-              value: _musicVolume,
-              min: 0,
-              max: 1,
-              divisions: 10,
-              label: (_musicVolume * 100).round().toString(),
-              onChanged: (value) {
-                setState(() {
-                  _musicVolume = value;
-                });
-                BackgroundMusicService.instance.updateVolume(value);
-              },
+            Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _musicMuted ? Icons.volume_off : Icons.volume_up,
+                  ),
+                  onPressed: () async {
+                    await BackgroundMusicService.instance.toggleMute();
+                    final prefs = await SharedPreferences.getInstance();
+                    setState(() {
+                      _musicMuted = prefs.getBool('music_muted') ?? false;
+                      _musicVolume = prefs.getDouble('music_volume') ?? _musicVolume;
+                    });
+                  },
+                ),
+                Expanded(
+                  child: Slider(
+                    value: _musicMuted ? 0 : _musicVolume,
+                    min: 0,
+                    max: 1,
+                    divisions: 10,
+                    label: (_musicVolume * 100).round().toString(),
+                    onChanged: (value) {
+                      setState(() {
+                        _musicVolume = value;
+                        _musicMuted = value == 0;
+                      });
+                      BackgroundMusicService.instance.updateVolume(value);
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             const Text('TTS Volume'),
@@ -211,6 +243,36 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                   _ttsVolume = value;
                 });
                 _saveLocalVolume('tts_volume', value);
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text('Speech Rate'),
+            Slider(
+              value: _ttsRate,
+              min: 0.2,
+              max: 1.0,
+              divisions: 8,
+              label: _ttsRate.toStringAsFixed(2),
+              onChanged: (value) {
+                setState(() {
+                  _ttsRate = value;
+                });
+                _saveLocalVolume('tts_rate', value);
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text('Pitch'),
+            Slider(
+              value: _ttsPitch,
+              min: 0.5,
+              max: 2.0,
+              divisions: 15,
+              label: _ttsPitch.toStringAsFixed(2),
+              onChanged: (value) {
+                setState(() {
+                  _ttsPitch = value;
+                });
+                _saveLocalVolume('tts_pitch', value);
               },
             ),
             const SizedBox(height: 16),
@@ -279,11 +341,9 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                       },
                     ),
               const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _ttsEngine == 'openai' && _ttsVoice == null
-                    ? null
-                    : _saveTts,
-                child: const Text('Save Speech Settings'),
+              const Text(
+                'Speech settings will be saved with the profile.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
             const SizedBox(height: 16),
@@ -294,7 +354,10 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
               ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _saving ? null : _save,
+              onPressed: (_saving ||
+                      (_ttsEngine == 'openai' && _ttsVoice == null))
+                  ? null
+                  : _save,
               child: _saving
                   ? const SizedBox(
                       height: 20,
