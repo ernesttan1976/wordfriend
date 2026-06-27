@@ -84,7 +84,7 @@ class _WordListDetailScreenState extends State<WordListDetailScreen> {
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => SketchDialog(
         title: const Text('Edit word'),
         content: Column(
           mainAxisSize: MainAxisSize.min,

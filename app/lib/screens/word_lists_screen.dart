@@ -41,7 +41,7 @@ class _WordListsScreenState extends State<WordListsScreen> {
   Future<void> _deleteList(WordListSummary list) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => SketchDialog(
         title: const Text('Delete list'),
         content: Text('Delete "${list.name}"?'),
         actions: [
@@ -69,7 +69,7 @@ class _WordListsScreenState extends State<WordListsScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => SketchDialog(
         title: const Text('Rename list'),
         content: TextField(
           controller: controller,
@@ -114,7 +114,7 @@ class _WordListsScreenState extends State<WordListsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return SketchDialog(
           title: const Text('Select lists for quiz'),
           content: SizedBox(
             width: double.maxFinite,
@@ -256,7 +256,7 @@ class _WordListsScreenState extends State<WordListsScreen> {
         builder: (context) {
           const words = ['Thinking...', 'Guessing...', 'Analyzing...', 'Finding...'];
 
-          return AlertDialog(
+          return SketchDialog(
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

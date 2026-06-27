@@ -281,7 +281,7 @@ class _QuizScreenState extends State<QuizScreen> {
           } else {
             await showDialog<void>(
               context: context,
-              builder: (context) => AlertDialog(
+              builder: (context) => SketchDialog(
                 title: const Text('Quiz complete'),
                 content: Text(
                   'You got $_correctCount out of ${_words.length} correct.',
@@ -410,7 +410,7 @@ class _QuizScreenState extends State<QuizScreen> {
             final canSubmit = commentController.text.trim().isNotEmpty &&
                 (regenHints || regenTts);
 
-            return AlertDialog(
+            return SketchDialog(
               title: const Text('Regenerate'),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -685,7 +685,7 @@ class _QuizScreenState extends State<QuizScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return SketchDialog(
           title: const Text('Audio Settings'),
           content: StatefulBuilder(
             builder: (context, setStateDialog) {

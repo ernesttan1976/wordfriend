@@ -6,6 +6,7 @@ import 'screens/sign_in_screen.dart';
 import 'screens/word_lists_screen.dart';
 import 'session_state.dart';
 import 'background_music_service.dart';
+import 'design/sketch_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,10 +26,7 @@ class WordFriendApp extends StatelessWidget {
       create: (_) => SessionState(),
       child: MaterialApp(
         title: 'WordFriend',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-          useMaterial3: true,
-        ),
+        theme: SketchTheme.pony(),
         home: const AuthGate(),
       ),
     );
