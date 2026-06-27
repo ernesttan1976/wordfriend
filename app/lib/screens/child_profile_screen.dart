@@ -248,14 +248,15 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
             const SizedBox(height: 16),
             const Text('Speech Rate'),
             Slider(
-              value: _ttsRate,
+              // Clamp to valid range in case persisted value is out of bounds
+              value: _ttsRate.clamp(0.2, 1.0).toDouble(),
               min: 0.2,
               max: 1.0,
               divisions: 8,
               label: _ttsRate.toStringAsFixed(2),
               onChanged: (value) {
                 setState(() {
-                  _ttsRate = value;
+                  _ttsRate = value.clamp(0.2, 1.0);
                 });
                 _saveLocalVolume('tts_rate', value);
               },
