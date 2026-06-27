@@ -4,6 +4,7 @@ import { authMiddleware, AuthRequest } from '../auth/jwt';
 import { updateAfterAttempt } from '../spacedRepetition';
 import OpenAI from 'openai';
 import { config } from '../config';
+import { OPENAI_TTS_VOICES } from '../ttsVoices';
 
 const router = Router();
 
@@ -12,6 +13,27 @@ router.use(authMiddleware);
 const openai = config.openaiApiKey
   ? new OpenAI({ apiKey: config.openaiApiKey })
   : null;
+
+function buildDeterministicHints(spelling: string): {
+  hintLetterCount: string;
+  hintFirstLast: string;
+  hintConsonants: string;
+} {
+  const lettersOnly = (spelling || '').replace(/[^a-z]/gi, '');
+  const first = lettersOnly[0] ?? '';
+  const last = lettersOnly.length > 0 ? lettersOnly[lettersOnly.length - 1] : '';
+  const consonants = lettersOnly
+    .replace(/[aeiou]/gi, '')
+    .split('')
+    .join(' ')
+    .trim();
+
+  return {
+    hintLetterCount: `${lettersOnly.length} letters`,
+    hintFirstLast: first && last ? `Starts with ${first}, ends with ${last}` : '',
+    hintConsonants: consonants ? `Consonants: ${consonants}` : '',
+  };
+}
 
 type QuizMode = 'listen_type' | 'read_say';
 
@@ -583,6 +605,123 @@ router.post('/quiz-sessions/:id/hint', async (req: AuthRequest, res) => {
   const visibleHints = allHints.slice(0, safeLevel);
 
   res.json({ hints: visibleHints });
+});
+
+router.post('/quiz-sessions/:id/words/:wordId/regenerate', async (req: AuthRequest, res) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+
+  const { id: sessionId, wordId } = req.params;
+  const { comment, regenerateHints, regenerateTts } = req.body as {
+    comment?: string;
+    regenerateHints?: boolean;
+    regenerateTts?: boolean;
+  };
+
+  if (!comment || typeof comment !== 'string' || comment.trim().length === 0) {
+    res.status(400).json({ error: 'comment required' });
+    return;
+  }
+
+  if (!regenerateHints && !regenerateTts) {
+    res.status(400).json({ error: 'select something to regenerate' });
+    return;
+  }
+
+  const sessionResult = await pool.query(
+    `SELECT qs.id
+       FROM quiz_sessions qs
+       JOIN children c ON qs.child_id = c.id
+      WHERE qs.id = $1 AND c.user_id = $2
+      LIMIT 1`,
+    [sessionId, userId],
+  );
+
+  if (sessionResult.rows.length === 0) {
+    res.status(404).json({ error: 'Quiz session not found' });
+    return;
+  }
+
+  const wordResult = await pool.query('SELECT id, spelling FROM words WHERE id = $1 LIMIT 1', [wordId]);
+  if (wordResult.rows.length === 0) {
+    res.status(404).json({ error: 'Word not found' });
+    return;
+  }
+
+  const spelling: string = wordResult.rows[0].spelling;
+  const trimmedComment = comment.trim();
+
+  if (!openai) {
+    res.status(500).json({ error: 'OpenAI not configured' });
+    return;
+  }
+
+  let updatedHints: { hint_sentence: string | null; hint_similar: string | null } | null = null;
+
+  if (regenerateHints) {
+    const hintCompletion = await openai.chat.completions.create({
+      model: config.openaiModel,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'For the given single word, respond ONLY with JSON: {"sentence":"...","similar":"..."}. Sentence should use the word naturally. Similar should be a child-friendly similar word. Avoid empty strings.',
+        },
+        {
+          role: 'user',
+          content: `Word: ${spelling}\nUser feedback: ${trimmedComment}`,
+        },
+      ],
+      temperature: 0.6,
+      max_completion_tokens: 120,
+      response_format: { type: 'json_object' },
+    });
+
+    let sentenceHint: string | null = null;
+    let similarHint: string | null = null;
+
+    try {
+      const parsedHints = JSON.parse(hintCompletion.choices[0]?.message?.content || '{}');
+      sentenceHint = typeof parsedHints.sentence === 'string' ? parsedHints.sentence : null;
+      similarHint = typeof parsedHints.similar === 'string' ? parsedHints.similar : null;
+    } catch {
+      sentenceHint = null;
+      similarHint = null;
+    }
+
+    const det = buildDeterministicHints(spelling);
+
+    await pool.query(
+      `UPDATE words
+          SET hint_sentence = $1,
+              hint_similar = $2,
+              hint_letter_count = $3,
+              hint_first_last = $4,
+              hint_consonants = $5
+        WHERE id = $6`,
+      [sentenceHint, similarHint, det.hintLetterCount, det.hintFirstLast, det.hintConsonants, wordId],
+    );
+
+    updatedHints = { hint_sentence: sentenceHint, hint_similar: similarHint };
+  }
+
+  if (regenerateTts) {
+    const allowed = OPENAI_TTS_VOICES.find(v => v.id === 'alloy') ?? OPENAI_TTS_VOICES[0];
+    const response = await openai.audio.speech.create({
+      model: 'gpt-4o-mini-tts',
+      voice: allowed.id,
+      input: spelling,
+    });
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const base64 = buffer.toString('base64');
+    await pool.query('UPDATE words SET tts_audio_base64 = $1 WHERE id = $2', [base64, wordId]);
+  }
+
+  res.json({ ok: true, ...(updatedHints ? { hints: updatedHints } : {}) });
 });
 
 // Aggregate quiz statistics for current user's child
