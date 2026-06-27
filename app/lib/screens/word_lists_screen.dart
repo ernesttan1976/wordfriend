@@ -111,20 +111,32 @@ class _WordListsScreenState extends State<WordListsScreen> {
     if (lists.isEmpty) return;
 
     final selected = <String>{};
+    int wordCount = 5;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return SketchDialog(
-          title: const Text('Select lists for quiz'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView(
-              shrinkWrap: true,
-              children: lists
-                  .map(
-                    (l) => StatefulBuilder(
-                      builder: (context, setStateDialog) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            final maxCount = selected.fold<int>(
+              0,
+              (sum, id) =>
+                  sum + (lists.firstWhere((l) => l.id == id).wordCount ?? 0),
+            );
+
+            final effectiveMax = maxCount < 5 ? 5 : maxCount;
+            if (wordCount > effectiveMax) wordCount = effectiveMax;
+
+            return SketchDialog(
+              title: const Text('Select lists for quiz'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 100),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ...lists.map((l) {
                         final isChecked = selected.contains(l.id);
                         return CheckboxListTile(
                           value: isChecked,
@@ -139,22 +151,43 @@ class _WordListsScreenState extends State<WordListsScreen> {
                             });
                           },
                         );
-                      },
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Start quiz'),
-            ),
-          ],
+                      }),
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Number of words: $wordCount'),
+                      ),
+                      Slider(
+                        min: 5,
+                        max: effectiveMax.toDouble(),
+                        divisions: (effectiveMax - 5) > 0
+                            ? (effectiveMax - 5)
+                            : 1,
+                        value: wordCount.toDouble(),
+                        onChanged: (value) {
+                          setStateDialog(() {
+                            wordCount = value.round();
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selected.isEmpty
+                      ? null
+                      : () => Navigator.of(context).pop(true),
+                  child: const Text('Start quiz'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -166,7 +199,7 @@ class _WordListsScreenState extends State<WordListsScreen> {
     try {
       final words = await api.randomWordsFromLists(
         listIds: selected.toList(),
-        size: 10,
+        size: wordCount,
       );
 
       final wordIds = words.map((w) => w.id).toList();
