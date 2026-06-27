@@ -36,7 +36,7 @@ class SketchDialog extends StatelessWidget {
           ],
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (title != null) ...[
@@ -46,7 +46,8 @@ class SketchDialog extends StatelessWidget {
               ),
               const SizedBox(height: 16),
             ],
-            content,
+            // Allow large dialog content to scroll instead of overflowing
+            Flexible(child: content),
             if (actions.isNotEmpty) ...[
               const SizedBox(height: 20),
               Wrap(
