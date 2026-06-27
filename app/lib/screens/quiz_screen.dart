@@ -28,6 +28,7 @@ class _QuizScreenState extends State<QuizScreen> {
   late final List<QuizWord> _words;
   int _index = 0;
   final TextEditingController _answerController = TextEditingController();
+  final FocusNode _answerFocusNode = FocusNode();
   bool _submitting = false;
   int _correctCount = 0;
   final List<String> _attempts = [];
@@ -68,6 +69,11 @@ class _QuizScreenState extends State<QuizScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakCurrentWord();
+      _initFabPosition();
+    });
+
+    _answerFocusNode.addListener(() {
+      if (mounted) setState(() {});
     });
   }
 
@@ -86,8 +92,42 @@ class _QuizScreenState extends State<QuizScreen> {
     _flutterTts.stop();
     _audioPlayer.dispose();
     _answerController.dispose();
+    _answerFocusNode.dispose();
     _cancelHintCooldown();
     super.dispose();
+  }
+
+  Offset? _fabOffset;
+
+  Future<void> _initFabPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dx = prefs.getDouble('quiz_fab_dx');
+    final dy = prefs.getDouble('quiz_fab_dy');
+
+    if (dx != null && dy != null) {
+      setState(() {
+        _fabOffset = Offset(dx, dy);
+      });
+      return;
+    }
+
+    final size = MediaQuery.of(context).size;
+    const fabSize = 56.0;
+    const margin = 16.0;
+
+    setState(() {
+      _fabOffset = Offset(
+        size.width - fabSize - margin,
+        size.height * 0.2,
+      );
+    });
+  }
+
+  Future<void> _persistFabPosition() async {
+    if (_fabOffset == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('quiz_fab_dx', _fabOffset!.dx);
+    await prefs.setDouble('quiz_fab_dy', _fabOffset!.dy);
   }
 
   void _startHintCooldown({int seconds = 10}) {
@@ -520,20 +560,24 @@ class _QuizScreenState extends State<QuizScreen> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     const keyboardHeight = 220.0; // fixed custom keyboard height
+    final showKeyboard = _answerFocusNode.hasFocus;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Listen & type quiz'),
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              16,
-              16,
-              16,
-              keyboardHeight + bottomInset + 16,
-            ),
-            child: Column(
+      body: GestureDetector(
+        onTap: () => _answerFocusNode.unfocus(),
+        behavior: HitTestBehavior.translucent,
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                (showKeyboard ? keyboardHeight : 0) + bottomInset + 16,
+              ),
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SizedBox(
@@ -572,11 +616,11 @@ class _QuizScreenState extends State<QuizScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _answerController,
+                  focusNode: _answerFocusNode,
                   decoration: const InputDecoration(
                     labelText: 'Your spelling',
                     border: OutlineInputBorder(),
                   ),
-                  // Block OS keyboard, spellcheck, suggestions, and voice input.
                   readOnly: true,
                   showCursor: true,
                   enableInteractiveSelection: false,
@@ -587,6 +631,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       const SpellCheckConfiguration.disabled(),
                   contextMenuBuilder: (context, editableTextState) =>
                       const SizedBox.shrink(),
+                  onTap: () => _answerFocusNode.requestFocus(),
                 ),
                 const SizedBox(height: 16),
                 const Text('Attempts (max 3):'),
@@ -619,22 +664,44 @@ class _QuizScreenState extends State<QuizScreen> {
               ],
             ),
           ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: QuizKeyboard(
-              onLetter: _appendLetter,
-              onBackspace: _backspace,
-              onEnter: _submit,
-              enableBackspace:
-                  _answerController.text.isNotEmpty && !_submitting,
-              enableEnter: !_submitting,
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAudioSettings,
-        child: const Icon(Icons.volume_up),
+            if (showKeyboard)
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: QuizKeyboard(
+                  onLetter: _appendLetter,
+                  onBackspace: _backspace,
+                  onEnter: _submit,
+                  enableBackspace:
+                      _answerController.text.isNotEmpty && !_submitting,
+                  enableEnter: !_submitting,
+                ),
+              ),
+            if (_fabOffset != null)
+              Positioned(
+                left: _fabOffset!.dx,
+                top: _fabOffset!.dy,
+                child: GestureDetector(
+                  onPanUpdate: (details) {
+                    setState(() {
+                      _fabOffset = Offset(
+                        (_fabOffset!.dx + details.delta.dx)
+                            .clamp(0.0,
+                                MediaQuery.of(context).size.width - 56),
+                        (_fabOffset!.dy + details.delta.dy)
+                            .clamp(0.0,
+                                MediaQuery.of(context).size.height - 56),
+                      );
+                    });
+                  },
+                  onPanEnd: (_) => _persistFabPosition(),
+                  child: FloatingActionButton(
+                    onPressed: _openAudioSettings,
+                    child: const Icon(Icons.volume_up),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
