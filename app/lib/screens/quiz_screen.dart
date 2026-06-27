@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import 'dart:async';
 import 'package:provider/provider.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
@@ -36,7 +35,6 @@ class _QuizScreenState extends State<QuizScreen> {
   List<String> _visibleHints = [];
   Timer? _hintCooldownTimer;
   int _hintCooldownSecondsRemaining = 0;
-  final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _speaking = false;
   MonsterPose _pose = MonsterPose.quizScreen;
@@ -89,7 +87,6 @@ class _QuizScreenState extends State<QuizScreen> {
     BackgroundMusicService.instance.restoreAfterTts(
       duration: Duration.zero,
     );
-    _flutterTts.stop();
     _audioPlayer.dispose();
     _answerController.dispose();
     _answerFocusNode.dispose();
@@ -204,55 +201,27 @@ class _QuizScreenState extends State<QuizScreen> {
       await _audioPlayer.stop();
       await _flutterTts.stop();
 
-      if (child.ttsEngine == 'native') {
-        // Apply TTS settings from profile (only if defined)
-        final prefs = await SharedPreferences.getInstance();
-        final configuredVolume = prefs.getDouble('tts_volume');
-        final configuredRate = prefs.getDouble('tts_rate');
-        final configuredPitch = prefs.getDouble('tts_pitch');
+      // Always use backend (OpenAI) TTS
+      final bytes = await sessionState.api.postBytes(
+        '/tts',
+        body: {
+          'text': _currentWord.spelling,
+          'voice': child.ttsVoice,
+        },
+      );
 
-        if (configuredVolume != null) {
-          await _flutterTts.setVolume(configuredVolume);
-        }
-        if (configuredRate != null) {
-          await _flutterTts.setSpeechRate(configuredRate);
-        }
-        if (configuredPitch != null) {
-          await _flutterTts.setPitch(configuredPitch);
-        }
+      // Write to temp file to avoid Android data URI issues
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
+      await file.writeAsBytes(bytes, flush: true);
 
-        // Keep iOS audio category stable for speech playback
-        if (Platform.isIOS) {
-          await _flutterTts.setIosAudioCategory(
-            IosTextToSpeechAudioCategory.playback,
-            [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
-          );
-        }
+      await _audioPlayer.setAudioSource(AudioSource.file(file.path));
+      await _audioPlayer.play();
 
-        await _flutterTts.awaitSpeakCompletion(true);
-        await _flutterTts.speak(_currentWord.spelling);
-      } else {
-        final bytes = await sessionState.api.postBytes(
-          '/tts',
-          body: {
-            'text': _currentWord.spelling,
-            'voice': child.ttsVoice,
-          },
-        );
-
-        // Write to temp file to avoid Android data URI issues
-        final dir = await getTemporaryDirectory();
-        final file = File(
-            '${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
-        await file.writeAsBytes(bytes, flush: true);
-
-        await _audioPlayer.setAudioSource(AudioSource.file(file.path));
-        await _audioPlayer.play();
-
-        // Wait until playback completes
-        await _audioPlayer.processingStateStream
-            .firstWhere((state) => state == ProcessingState.completed);
-      }
+      // Wait until playback completes
+      await _audioPlayer.processingStateStream
+          .firstWhere((state) => state == ProcessingState.completed);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -711,8 +680,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
     double musicVolume = prefs.getDouble('music_volume') ?? 0.5;
     double ttsVolume = prefs.getDouble('tts_volume') ?? 1.0;
-    double ttsRate = prefs.getDouble('tts_rate') ?? 0.5;
-    double ttsPitch = prefs.getDouble('tts_pitch') ?? 1.0;
 
     if (!mounted) return;
 
@@ -752,35 +719,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       onChanged: (v) async {
                         setStateDialog(() => ttsVolume = v);
                         await prefs.setDouble('tts_volume', v);
-                        await _flutterTts.setVolume(v);
-                      },
-                    ),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Speech Rate'),
-                    ),
-                    Slider(
-                      value: ttsRate,
-                      min: 0.1,
-                      max: 1.0,
-                      onChanged: (v) async {
-                        setStateDialog(() => ttsRate = v);
-                        await prefs.setDouble('tts_rate', v);
-                        await _flutterTts.setSpeechRate(v);
-                      },
-                    ),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Pitch'),
-                    ),
-                    Slider(
-                      value: ttsPitch,
-                      min: 0.5,
-                      max: 2.0,
-                      onChanged: (v) async {
-                        setStateDialog(() => ttsPitch = v);
-                        await prefs.setDouble('tts_pitch', v);
-                        await _flutterTts.setPitch(v);
+                        await _audioPlayer.setVolume(v);
                       },
                     ),
                   ],
