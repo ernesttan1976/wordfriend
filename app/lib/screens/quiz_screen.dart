@@ -459,12 +459,10 @@ class _QuizScreenState extends State<QuizScreen> {
     );
 
     if (confirmed != true || !mounted) {
-      commentController.dispose();
       return;
     }
 
     final comment = commentController.text.trim();
-    commentController.dispose();
 
     setState(() {
       _regenerating = true;
@@ -520,8 +518,8 @@ class _QuizScreenState extends State<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final keyboardHeight = screenHeight / 3;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    const keyboardHeight = 220.0; // fixed custom keyboard height
     return Scaffold(
       appBar: AppBar(
         title: const Text('Listen & type quiz'),
@@ -529,7 +527,12 @@ class _QuizScreenState extends State<QuizScreen> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, keyboardHeight + 16),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              keyboardHeight + bottomInset + 16,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

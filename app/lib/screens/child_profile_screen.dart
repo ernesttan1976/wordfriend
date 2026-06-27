@@ -24,6 +24,7 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
   double _ttsVolume = 1.0;
   double _ttsRate = 0.5;
   double _ttsPitch = 1.0;
+  bool _musicMuted = false;
 
   @override
   void initState() {
@@ -54,6 +55,7 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
       _ttsVolume = prefs.getDouble('tts_volume') ?? 1.0;
       _ttsRate = prefs.getDouble('tts_rate') ?? 0.5;
       _ttsPitch = prefs.getDouble('tts_pitch') ?? 1.0;
+      _musicMuted = prefs.getBool('music_muted') ?? false;
     });
   }
 
@@ -195,18 +197,38 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
             ),
             const SizedBox(height: 16),
             const Text('Music Volume'),
-            Slider(
-              value: _musicVolume,
-              min: 0,
-              max: 1,
-              divisions: 10,
-              label: (_musicVolume * 100).round().toString(),
-              onChanged: (value) {
-                setState(() {
-                  _musicVolume = value;
-                });
-                BackgroundMusicService.instance.updateVolume(value);
-              },
+            Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    _musicMuted ? Icons.volume_off : Icons.volume_up,
+                  ),
+                  onPressed: () async {
+                    await BackgroundMusicService.instance.toggleMute();
+                    final prefs = await SharedPreferences.getInstance();
+                    setState(() {
+                      _musicMuted = prefs.getBool('music_muted') ?? false;
+                      _musicVolume = prefs.getDouble('music_volume') ?? _musicVolume;
+                    });
+                  },
+                ),
+                Expanded(
+                  child: Slider(
+                    value: _musicMuted ? 0 : _musicVolume,
+                    min: 0,
+                    max: 1,
+                    divisions: 10,
+                    label: (_musicVolume * 100).round().toString(),
+                    onChanged: (value) {
+                      setState(() {
+                        _musicVolume = value;
+                        _musicMuted = value == 0;
+                      });
+                      BackgroundMusicService.instance.updateVolume(value);
+                    },
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             const Text('TTS Volume'),
