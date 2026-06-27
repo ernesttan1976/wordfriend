@@ -16,7 +16,7 @@ class QuizKeyboard extends StatelessWidget {
   final bool enableBackspace;
   final bool enableEnter;
 
-  Widget _letterKey(BuildContext context, String letter) {
+  Widget _letterKey(String letter) {
     return AspectRatio(
       aspectRatio: 1,
       child: Padding(
@@ -45,7 +45,7 @@ class QuizKeyboard extends StatelessWidget {
   Widget _row(List<String> letters) {
     return Row(
       children: [
-        for (final l in letters) _letterKey(null as BuildContext, l),
+        for (final l in letters) _letterKey(l),
       ],
     );
   }
@@ -108,7 +108,7 @@ class QuizKeyboard extends StatelessWidget {
       children: [
         for (int i = 0; i < leadingSlots; i++)
           const Expanded(child: SizedBox()),
-        for (final l in letters) Expanded(child: _letterKey(null as BuildContext, l)),
+        for (final l in letters) Expanded(child: _letterKey(l)),
         for (int i = 0; i < trailingSlots; i++)
           const Expanded(child: SizedBox()),
       ],
