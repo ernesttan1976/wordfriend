@@ -78,6 +78,12 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
 
     try {
       await session.saveChildProfile(age: age, theme: _theme);
+
+      // Persist TTS engine/voice together with profile
+      await session.updateTtsSettings(
+        engine: _ttsEngine,
+        voice: _ttsEngine == 'openai' ? _ttsVoice : null,
+      );
     } catch (_) {
       // error is stored in session
     } finally {
@@ -313,11 +319,9 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                       },
                     ),
               const SizedBox(height: 12),
-              ElevatedButton(
-                onPressed: _ttsEngine == 'openai' && _ttsVoice == null
-                    ? null
-                    : _saveTts,
-                child: const Text('Save Speech Settings'),
+              const Text(
+                'Speech settings will be saved with the profile.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
             const SizedBox(height: 16),
@@ -328,7 +332,10 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
               ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _saving ? null : _save,
+              onPressed: (_saving ||
+                      (_ttsEngine == 'openai' && _ttsVoice == null))
+                  ? null
+                  : _save,
               child: _saving
                   ? const SizedBox(
                       height: 20,
