@@ -58,6 +58,13 @@ class _QuizScreenState extends State<QuizScreen> {
     // Randomize the quiz sequence once per quiz run.
     _words = List<QuizWord>.of(widget.session.words)..shuffle(Random.secure());
 
+    // Mute background music for the duration of the quiz.
+    BackgroundMusicService.instance.duckForTts(
+      duration: Duration.zero,
+    );
+
+    // TTS parameters are configured per word in _speakCurrentWord().
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _speakCurrentWord();
     });
@@ -67,6 +74,19 @@ class _QuizScreenState extends State<QuizScreen> {
     _hintCooldownTimer?.cancel();
     _hintCooldownTimer = null;
     _hintCooldownSecondsRemaining = 0;
+  }
+
+  @override
+  void dispose() {
+    // Restore background music when leaving the quiz.
+    BackgroundMusicService.instance.restoreAfterTts(
+      duration: Duration.zero,
+    );
+    _flutterTts.stop();
+    _audioPlayer.dispose();
+    _answerController.dispose();
+    _cancelHintCooldown();
+    super.dispose();
   }
 
   void _startHintCooldown({int seconds = 10}) {
@@ -144,6 +164,30 @@ class _QuizScreenState extends State<QuizScreen> {
       await _flutterTts.stop();
 
       if (child.ttsEngine == 'native') {
+        // Apply TTS settings from profile (only if defined)
+        final prefs = await SharedPreferences.getInstance();
+        final configuredVolume = prefs.getDouble('tts_volume');
+        final configuredRate = prefs.getDouble('tts_rate');
+        final configuredPitch = prefs.getDouble('tts_pitch');
+
+        if (configuredVolume != null) {
+          await _flutterTts.setVolume(configuredVolume);
+        }
+        if (configuredRate != null) {
+          await _flutterTts.setSpeechRate(configuredRate);
+        }
+        if (configuredPitch != null) {
+          await _flutterTts.setPitch(configuredPitch);
+        }
+
+        // Keep iOS audio category stable for speech playback
+        if (Platform.isIOS) {
+          await _flutterTts.setIosAudioCategory(
+            IosTextToSpeechAudioCategory.playback,
+            [IosTextToSpeechAudioCategoryOptions.mixWithOthers],
+          );
+        }
+
         await _flutterTts.awaitSpeakCompletion(true);
         await _flutterTts.speak(_currentWord.spelling);
       } else {
@@ -471,15 +515,6 @@ class _QuizScreenState extends State<QuizScreen> {
         });
       }
     }
-  }
-
-  @override
-  void dispose() {
-    _answerController.dispose();
-    _hintCooldownTimer?.cancel();
-    _flutterTts.stop();
-    _audioPlayer.dispose();
-    super.dispose();
   }
 
   @override

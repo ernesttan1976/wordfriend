@@ -22,6 +22,8 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
   bool _loadingVoices = false;
   double _musicVolume = 0.1;
   double _ttsVolume = 1.0;
+  double _ttsRate = 0.5;
+  double _ttsPitch = 1.0;
 
   @override
   void initState() {
@@ -50,6 +52,8 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
     setState(() {
       _musicVolume = prefs.getDouble('music_volume') ?? 1.0;
       _ttsVolume = prefs.getDouble('tts_volume') ?? 1.0;
+      _ttsRate = prefs.getDouble('tts_rate') ?? 0.5;
+      _ttsPitch = prefs.getDouble('tts_pitch') ?? 1.0;
     });
   }
 
@@ -211,6 +215,36 @@ class _ChildProfileScreenState extends State<ChildProfileScreen> {
                   _ttsVolume = value;
                 });
                 _saveLocalVolume('tts_volume', value);
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text('Speech Rate'),
+            Slider(
+              value: _ttsRate,
+              min: 0.2,
+              max: 1.0,
+              divisions: 8,
+              label: _ttsRate.toStringAsFixed(2),
+              onChanged: (value) {
+                setState(() {
+                  _ttsRate = value;
+                });
+                _saveLocalVolume('tts_rate', value);
+              },
+            ),
+            const SizedBox(height: 16),
+            const Text('Pitch'),
+            Slider(
+              value: _ttsPitch,
+              min: 0.5,
+              max: 2.0,
+              divisions: 15,
+              label: _ttsPitch.toStringAsFixed(2),
+              onChanged: (value) {
+                setState(() {
+                  _ttsPitch = value;
+                });
+                _saveLocalVolume('tts_pitch', value);
               },
             ),
             const SizedBox(height: 16),
