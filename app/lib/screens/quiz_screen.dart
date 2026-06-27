@@ -199,7 +199,6 @@ class _QuizScreenState extends State<QuizScreen> {
       await BackgroundMusicService.instance.pause();
 
       await _audioPlayer.stop();
-      await _flutterTts.stop();
 
       // Always use backend (OpenAI) TTS
       final bytes = await sessionState.api.postBytes(
