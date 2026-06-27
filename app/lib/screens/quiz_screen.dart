@@ -38,6 +38,7 @@ class _QuizScreenState extends State<QuizScreen> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   bool _speaking = false;
   MonsterPose _pose = MonsterPose.quizScreen;
+  bool _regenerating = false;
 
   QuizWord get _currentWord => _words[_index];
 
@@ -156,7 +157,8 @@ class _QuizScreenState extends State<QuizScreen> {
 
         // Write to temp file to avoid Android data URI issues
         final dir = await getTemporaryDirectory();
-        final file = File('${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
+        final file = File(
+            '${dir.path}/tts_${DateTime.now().millisecondsSinceEpoch}.mp3');
         await file.writeAsBytes(bytes, flush: true);
 
         await _audioPlayer.setAudioSource(AudioSource.file(file.path));
@@ -255,7 +257,8 @@ class _QuizScreenState extends State<QuizScreen> {
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit answer: HTTP ${e.statusCode}')),
+        SnackBar(
+            content: Text('Failed to submit answer: HTTP ${e.statusCode}')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -311,10 +314,10 @@ class _QuizScreenState extends State<QuizScreen> {
 
     api
         .getQuizHint(
-          sessionId: widget.session.id,
-          wordId: _currentWord.id,
-          level: nextLevel,
-        )
+      sessionId: widget.session.id,
+      wordId: _currentWord.id,
+      level: nextLevel,
+    )
         .then((hints) {
       if (!mounted) return;
       setState(() {
@@ -339,6 +342,137 @@ class _QuizScreenState extends State<QuizScreen> {
     });
   }
 
+  Future<void> _showRegenerateDialog() async {
+    if (_submitting || _speaking || _regenerating) return;
+
+    final commentController = TextEditingController();
+    bool regenHints = true;
+    bool regenTts = false;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setLocalState) {
+            final canSubmit = commentController.text.trim().isNotEmpty &&
+                (regenHints || regenTts);
+
+            return AlertDialog(
+              title: const Text('Regenerate'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                      'What went wrong? Add a short note so we can regenerate better.'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: commentController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Feedback comment',
+                      hintText: 'e.g. no voice, hint is wrong, hints missing',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (_) => setLocalState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  CheckboxListTile(
+                    value: regenHints,
+                    onChanged: (v) => setLocalState(() {
+                      regenHints = v ?? false;
+                    }),
+                    title: const Text('Regenerate hints'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  CheckboxListTile(
+                    value: regenTts,
+                    onChanged: (v) => setLocalState(() {
+                      regenTts = v ?? false;
+                    }),
+                    title: const Text('Regenerate voice (TTS)'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed:
+                      canSubmit ? () => Navigator.of(context).pop(true) : null,
+                  child: const Text('Regenerate'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      commentController.dispose();
+      return;
+    }
+
+    final comment = commentController.text.trim();
+    commentController.dispose();
+
+    setState(() {
+      _regenerating = true;
+    });
+
+    try {
+      final api = context.read<SessionState>().api;
+      await api.regenerateQuizWord(
+        sessionId: widget.session.id,
+        wordId: _currentWord.id,
+        comment: comment,
+        regenerateHints: regenHints,
+        regenerateTts: regenTts,
+      );
+
+      if (!mounted) return;
+
+      if (regenHints) {
+        setState(() {
+          _hintLevel = 0;
+          _visibleHints = [];
+          _cancelHintCooldown();
+        });
+      }
+
+      if (regenTts) {
+        await _speakCurrentWord();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Regenerated.')),
+        );
+      }
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Regenerate failed: HTTP ${e.statusCode}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Regenerate failed: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _regenerating = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _answerController.dispose();
@@ -347,7 +481,6 @@ class _QuizScreenState extends State<QuizScreen> {
     _audioPlayer.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -364,74 +497,86 @@ class _QuizScreenState extends State<QuizScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-            SizedBox(
-              height: 180,
-              width: double.infinity,
-              child: MonsterMascot(
-                size: 160,
-                pose: _pose,
-              ),
-            ),
-            const SizedBox(height: 16),
-            LinearProgressIndicator(
-              value: ((_index + 1) / _words.length),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Word ${_index + 1} of ${_words.length}',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 24),
-            const Text('Listen carefully. Type what you hear.'),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _speaking ? null : _speakCurrentWord,
-              icon: const Icon(Icons.volume_up),
-              label: const Text('Replay word'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _answerController,
-              decoration: const InputDecoration(
-                labelText: 'Your spelling',
-                border: OutlineInputBorder(),
-              ),
-              // Block OS keyboard, spellcheck, suggestions, and voice input.
-              readOnly: true,
-              showCursor: true,
-              enableInteractiveSelection: false,
-              autocorrect: false,
-              enableSuggestions: false,
-              textCapitalization: TextCapitalization.none,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              contextMenuBuilder: (context, editableTextState) => const SizedBox.shrink(),
-            ),
-            const SizedBox(height: 16),
-            const Text('Attempts (max 3):'),
-            const SizedBox(height: 8),
-            for (final attempt in _attempts)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildDiff(attempt, _currentWord.spelling),
-                  const SizedBox(height: 6),
-                ],
-              ),
-            const SizedBox(height: 12),
-            if (_attempts.length < 3)
-              TextButton(
-                onPressed: (_hintCooldownSecondsRemaining > 0) ? null : _requestHint,
-                child: Text(
-                  _hintCooldownSecondsRemaining > 0
-                      ? 'Show hint (${_hintCooldownSecondsRemaining}s)'
-                      : 'Show hint',
+                SizedBox(
+                  height: 180,
+                  width: double.infinity,
+                  child: MonsterMascot(
+                    size: 160,
+                    pose: _pose,
+                  ),
                 ),
-              ),
-            for (int i = 0; i < _visibleHints.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text('Hint ${i + 1}: ${_visibleHints[i]}'),
-              ),
+                const SizedBox(height: 16),
+                LinearProgressIndicator(
+                  value: ((_index + 1) / _words.length),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Word ${_index + 1} of ${_words.length}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 24),
+                const Text('Listen carefully. Type what you hear.'),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _speaking ? null : _speakCurrentWord,
+                  icon: const Icon(Icons.volume_up),
+                  label: const Text('Replay word'),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: (_submitting || _speaking || _regenerating)
+                      ? null
+                      : _showRegenerateDialog,
+                  icon: const Icon(Icons.auto_fix_high),
+                  label: const Text('Regenerate'),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _answerController,
+                  decoration: const InputDecoration(
+                    labelText: 'Your spelling',
+                    border: OutlineInputBorder(),
+                  ),
+                  // Block OS keyboard, spellcheck, suggestions, and voice input.
+                  readOnly: true,
+                  showCursor: true,
+                  enableInteractiveSelection: false,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textCapitalization: TextCapitalization.none,
+                  spellCheckConfiguration:
+                      const SpellCheckConfiguration.disabled(),
+                  contextMenuBuilder: (context, editableTextState) =>
+                      const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 16),
+                const Text('Attempts (max 3):'),
+                const SizedBox(height: 8),
+                for (final attempt in _attempts)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDiff(attempt, _currentWord.spelling),
+                      const SizedBox(height: 6),
+                    ],
+                  ),
+                const SizedBox(height: 12),
+                if (_attempts.length < 3)
+                  TextButton(
+                    onPressed: (_hintCooldownSecondsRemaining > 0)
+                        ? null
+                        : _requestHint,
+                    child: Text(
+                      _hintCooldownSecondsRemaining > 0
+                          ? 'Show hint (${_hintCooldownSecondsRemaining}s)'
+                          : 'Show hint',
+                    ),
+                  ),
+                for (int i = 0; i < _visibleHints.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text('Hint ${i + 1}: ${_visibleHints[i]}'),
+                  ),
               ],
             ),
           ),
@@ -441,7 +586,8 @@ class _QuizScreenState extends State<QuizScreen> {
               onLetter: _appendLetter,
               onBackspace: _backspace,
               onEnter: _submit,
-              enableBackspace: _answerController.text.isNotEmpty && !_submitting,
+              enableBackspace:
+                  _answerController.text.isNotEmpty && !_submitting,
               enableEnter: !_submitting,
             ),
           ),

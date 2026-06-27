@@ -32,7 +32,9 @@ class ApiClient {
     if (path.startsWith('http://') || path.startsWith('https://')) {
       return Uri.parse(path);
     }
-    final normalizedBase = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    final normalizedBase = baseUrl.endsWith('/')
+        ? baseUrl.substring(0, baseUrl.length - 1)
+        : baseUrl;
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return Uri.parse('$normalizedBase$normalizedPath');
   }
@@ -103,7 +105,8 @@ class ApiClient {
     return ChildProfile.fromJson(json);
   }
 
-  Future<ChildProfile> upsertChild({required int age, required String theme}) async {
+  Future<ChildProfile> upsertChild(
+      {required int age, required String theme}) async {
     final resp = await _client.put(
       _uri('/child'),
       headers: _headers(),
@@ -127,13 +130,15 @@ class ApiClient {
   }
 
   Future<WordListDetail> getWordList(String id) async {
-    final resp = await _client.get(_uri('/word-lists/$id'), headers: _headers());
+    final resp =
+        await _client.get(_uri('/word-lists/$id'), headers: _headers());
     final json = await _handleJsonResponse(resp);
     return WordListDetail.fromJson(json);
   }
 
   Future<void> deleteWordList(String id) async {
-    final resp = await _client.delete(_uri('/word-lists/$id'), headers: _headers());
+    final resp =
+        await _client.delete(_uri('/word-lists/$id'), headers: _headers());
     if (resp.statusCode < 200 || resp.statusCode >= 300) {
       throw ApiException(resp.statusCode, resp.body);
     }
@@ -318,6 +323,26 @@ class ApiClient {
     final json = await _handleJsonResponse(resp);
     final hints = (json['hints'] as List<dynamic>? ?? <dynamic>[]);
     return hints.map((e) => e as String).toList();
+  }
+
+  Future<void> regenerateQuizWord({
+    required String sessionId,
+    required String wordId,
+    required String comment,
+    required bool regenerateHints,
+    required bool regenerateTts,
+  }) async {
+    final resp = await _client.post(
+      _uri('/quiz/quiz-sessions/$sessionId/words/$wordId/regenerate'),
+      headers: _headers(),
+      body: jsonEncode({
+        'comment': comment,
+        'regenerateHints': regenerateHints,
+        'regenerateTts': regenerateTts,
+      }),
+    );
+
+    await _handleJsonResponse(resp);
   }
 
   Future<Map<String, dynamic>> getQuizStats() async {

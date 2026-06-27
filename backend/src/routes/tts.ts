@@ -14,7 +14,7 @@ router.get('/voices', (_req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { text, voice } = req.body as { text?: string; voice?: string };
+    const { text, voice, force } = req.body as { text?: string; voice?: string; force?: boolean };
 
     if (!text || typeof text !== 'string') {
       return res.status(400).json({ error: 'Invalid text' });
@@ -35,13 +35,13 @@ router.post('/', async (req, res) => {
 
     const spelling = text.trim();
 
-    // Check if we already have cached TTS for this word
+    // Check if we already have cached TTS for this word (unless forced)
     const existing = await pool.query(
       'SELECT id, tts_audio_base64 FROM words WHERE spelling = $1 LIMIT 1',
       [spelling],
     );
 
-    if (existing.rows.length > 0 && existing.rows[0].tts_audio_base64) {
+    if (!force && existing.rows.length > 0 && existing.rows[0].tts_audio_base64) {
       const buffer = Buffer.from(existing.rows[0].tts_audio_base64, 'base64');
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Cache-Control', 'public, max-age=31536000');
