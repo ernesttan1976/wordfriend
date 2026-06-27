@@ -26,7 +26,7 @@ class WordFriendApp extends StatelessWidget {
       create: (_) => SessionState(),
       child: MaterialApp(
         title: 'WordFriend',
-        theme: SketchTheme.pony(),
+        theme: SketchTheme.build(),
         home: const AuthGate(),
       ),
     );

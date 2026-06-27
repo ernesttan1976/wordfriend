@@ -52,6 +52,8 @@ router.post('/', async (req, res) => {
       model: 'gpt-4o-mini-tts',
       voice: allowed.id,
       input: text,
+      // Default speaking rate at 0.7x
+      speed: 0.7,
     });
 
     const buffer = Buffer.from(await response.arrayBuffer());
