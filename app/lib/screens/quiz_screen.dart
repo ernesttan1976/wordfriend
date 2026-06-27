@@ -158,8 +158,8 @@ class _QuizScreenState extends State<QuizScreen> {
     });
 
     try {
-      // Fade out background music while TTS plays
-      await BackgroundMusicService.instance.duckForTts();
+      // Pause background music while TTS plays
+      await BackgroundMusicService.instance.pause();
 
       await _audioPlayer.stop();
       await _flutterTts.stop();
@@ -220,8 +220,8 @@ class _QuizScreenState extends State<QuizScreen> {
         );
       }
     } finally {
-      // Restore background music after TTS completes or fails
-      await BackgroundMusicService.instance.restoreAfterTts();
+      // Resume background music after TTS completes or fails
+      await BackgroundMusicService.instance.resume();
 
       if (mounted) {
         setState(() {

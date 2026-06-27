@@ -48,6 +48,18 @@ class BackgroundMusicService {
     await _player.dispose();
   }
 
+  Future<void> pause() async {
+    if (_initialized) {
+      await _player.pause();
+    }
+  }
+
+  Future<void> resume() async {
+    if (_initialized) {
+      await _player.play();
+    }
+  }
+
   /// Set background music volume directly (0.0 - 1.0).
   Future<void> updateVolume(double value) async {
     _currentVolume = value.clamp(0.0, 1.0);
