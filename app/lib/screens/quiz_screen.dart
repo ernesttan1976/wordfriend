@@ -668,7 +668,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       onChanged: (v) async {
                         setStateDialog(() => musicVolume = v);
                         await prefs.setDouble('music_volume', v);
-                        BackgroundMusicService().setVolume(v);
+                        await BackgroundMusicService.instance.updateVolume(v);
                       },
                     ),
                     const Align(
