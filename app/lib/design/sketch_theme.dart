@@ -1,78 +1,66 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class SketchTheme {
-  static const _paperPrimary = Color(0xFFFFFAF0);
-  static const _paperSecondary = Color(0xFFFFF7E8);
-  static const _ink = Color(0xFF222222);
-  static const _softGray = Color(0xFF666666);
+  // Core colors
+  static const paper = Color(0xFFFFFAF0);
+  static const paperSoft = Color(0xFFFFF4DD);
+  static const ink = Color(0xFF222222);
+  static const mutedGray = Color(0xFF6B6B6B);
 
-  static ThemeData pony() {
-    // Pink + soft rainbow accents
-    const primaryPink = Color(0xFFFF9ECF);
+  // Muted kid-friendly accents
+  static const sage = Color(0xFFA8D5BA);
+  static const dustyBlue = Color(0xFFA7C7E7);
+  static const warmOrange = Color(0xFFF4A261);
+  static const mutedYellow = Color(0xFFE9C46A);
+  static const softCoral = Color(0xFFF28482);
 
-    return _baseTheme(
-      accentColors: const [
-        primaryPink,
-        Color(0xFFFFC1E3),
-        Color(0xFFB5EAD7),
-        Color(0xFFC7CEEA),
-        Color(0xFFFFDAC1),
-      ],
-      primary: primaryPink,
-    );
-  }
+  // Spacing scale
+  static const s8 = 8.0;
+  static const s12 = 12.0;
+  static const s16 = 16.0;
+  static const s24 = 24.0;
+  static const s32 = 32.0;
+  static const s48 = 48.0;
 
-  static ThemeData lego() {
-    // Classic Lego-inspired colors
-    const legoRed = Color(0xFFD32F2F);
-
-    return _baseTheme(
-      accentColors: const [
-        legoRed,
-        Color(0xFF1976D2),
-        Color(0xFFFBC02D),
-        Color(0xFF388E3C),
-      ],
-      primary: legoRed,
-    );
-  }
-
-  static ThemeData _baseTheme({
-    required List<Color> accentColors,
-    required Color primary,
-  }) {
-    final colorScheme = ColorScheme(
-      brightness: Brightness.light,
-      primary: primary,
-      onPrimary: _ink,
-      secondary: accentColors.first,
-      onSecondary: _ink,
-      error: const Color(0xFFE57373),
-      onError: _ink,
-      background: _paperPrimary,
-      onBackground: _ink,
-      surface: _paperSecondary,
-      onSurface: _ink,
+  static ThemeData build() {
+    final baseText = GoogleFonts.nunito(
+      color: ink,
+      fontSize: 16,
     );
 
     return ThemeData(
       useMaterial3: false,
-      colorScheme: colorScheme,
-      scaffoldBackgroundColor: _paperPrimary,
-      textTheme: const TextTheme(
-        bodyMedium: TextStyle(
-          fontSize: 16,
-          color: _ink,
+      scaffoldBackgroundColor: paper,
+      colorScheme: const ColorScheme.light(
+        primary: sage,
+        secondary: dustyBlue,
+        surface: paperSoft,
+        background: paper,
+        error: softCoral,
+        onPrimary: ink,
+        onSecondary: ink,
+        onSurface: ink,
+        onBackground: ink,
+        onError: ink,
+      ),
+      textTheme: TextTheme(
+        bodyMedium: baseText,
+        bodyLarge: baseText.copyWith(fontSize: 18),
+        titleLarge: GoogleFonts.fredoka(
+          fontSize: 24,
+          fontWeight: FontWeight.w600,
+          color: ink,
         ),
-        titleLarge: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.w700,
-          color: _ink,
+        headlineMedium: GoogleFonts.fredoka(
+          fontSize: 32,
+          fontWeight: FontWeight.w600,
+          color: ink,
         ),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: _paperSecondary,
-        foregroundColor: _ink,
+        backgroundColor: paper,
+        foregroundColor: ink,
         elevation: 0,
         centerTitle: true,
       ),
