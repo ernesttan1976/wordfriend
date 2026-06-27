@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sketchy_design_lang/sketchy_design_lang.dart';
 import 'package:provider/provider.dart';
 
 import 'screens/child_profile_screen.dart';
@@ -6,7 +7,6 @@ import 'screens/sign_in_screen.dart';
 import 'screens/word_lists_screen.dart';
 import 'session_state.dart';
 import 'background_music_service.dart';
-import 'design/sketch_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,9 +24,8 @@ class WordFriendApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => SessionState(),
-      child: MaterialApp(
+      child: SketchyApp(
         title: 'WordFriend',
-        theme: SketchTheme.build(),
         home: const AuthGate(),
       ),
     );
