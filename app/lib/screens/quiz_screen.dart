@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../design/sketch_dialog.dart';
 import 'dart:math';
 import 'dart:async';
 import 'package:provider/provider.dart';

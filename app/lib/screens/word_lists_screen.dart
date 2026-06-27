@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../design/sketch_dialog.dart';
 import 'package:provider/provider.dart';
 
 import '../api_client.dart';
