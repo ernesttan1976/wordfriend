@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../design/sketch_card.dart';
+import '../design/sketch_button.dart';
 
 import '../session_state.dart';
 import '../constants.dart';
@@ -115,53 +116,65 @@ class _SignInScreenState extends State<SignInScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Word Friend',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 40,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
+                    SketchCard(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Word Friend',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(fontSize: 34),
+                            ),
+                            const SizedBox(height: 24),
+                            Center(
+                              child: Image.asset(
+                                'assets/monster.png',
+                                height: 240,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            if (session.error != null) ...[
+                              Text(
+                                session.error!,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(color: Colors.red.shade700),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            SketchButton(
+                              onPressed:
+                                  _submitting ? () {} : _signInWithGoogle,
+                              child: Text(
+                                _submitting
+                                    ? 'Signing in...'
+                                    : 'Sign in with Google',
+                              ),
+                            ),
+                            if (_hasGoogleSession) ...[
+                              const SizedBox(height: 16),
+                              SketchButton(
+                                onPressed: _signOutGoogle,
+                                child: const Text('Sign out of Google'),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: Image.asset(
-                        'assets/monster.png',
-                        height: 280,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (session.error != null)
-                      Text(
-                        session.error!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    if (session.error != null) const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _submitting ? null : _signInWithGoogle,
-                      child: _submitting
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Sign in with Google'),
-                    ),
-                    if (_hasGoogleSession) ...[
-                      const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: _signOutGoogle,
-                        child: const Text('Sign out of Google'),
-                      ),
-                    ],
-                    Positioned(
-                      bottom: 90,
-                      right: 16,
+                    const SizedBox(height: 40),
+                    Align(
+                      alignment: Alignment.centerRight,
                       child: MonsterMascot(
-                        size: 120,
+                        size: 110,
                         pose: MonsterPose.signInScreen,
                       ),
                     ),
