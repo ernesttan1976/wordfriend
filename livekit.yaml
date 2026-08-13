@@ -7,7 +7,8 @@ rtc:
 
 # For local dev.
 keys:
-  devkey: devsecret
+  # LiveKit requires secrets to be >= 32 chars.
+  devkey: devsecretdevsecretdevsecretdevsecret
 
 logging:
   level: info

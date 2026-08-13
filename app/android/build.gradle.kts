@@ -19,6 +19,18 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+// Workaround for plugins that still expect the Kotlin Gradle plugin to be applied even under AGP 9's
+// built-in Kotlin support (e.g. device_info_plus 13.2.0 configures KotlinAndroidProjectExtension).
+subprojects {
+    if (name == "device_info_plus") {
+        plugins.withId("com.android.library") {
+            if (!pluginManager.hasPlugin("org.jetbrains.kotlin.android")) {
+                pluginManager.apply("org.jetbrains.kotlin.android")
+            }
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
