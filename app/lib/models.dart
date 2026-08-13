@@ -148,6 +148,22 @@ class WordListDetail {
   }
 }
 
+class LiveKitTokenResponse {
+  LiveKitTokenResponse({required this.token, required this.wsUrl, required this.room});
+
+  final String token;
+  final String wsUrl;
+  final String room;
+
+  factory LiveKitTokenResponse.fromJson(Map<String, dynamic> json) {
+    return LiveKitTokenResponse(
+      token: json['token'] as String,
+      wsUrl: json['wsUrl'] as String,
+      room: json['room'] as String,
+    );
+  }
+}
+
 class QuizWord {
   QuizWord({required this.id, required this.spelling, this.phonicsPattern});
 

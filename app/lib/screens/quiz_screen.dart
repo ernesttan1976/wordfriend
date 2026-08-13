@@ -14,6 +14,7 @@ import '../session_state.dart';
 import '../monster_mascot.dart';
 import '../background_music_service.dart';
 import '../widgets/quiz_keyboard.dart';
+import '../voice/voice_chat_controller.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key, required this.session});
@@ -40,6 +41,8 @@ class _QuizScreenState extends State<QuizScreen> {
   bool _speaking = false;
   MonsterPose _pose = MonsterPose.quizScreen;
   bool _regenerating = false;
+
+  VoiceChatController? _tutor;
 
   QuizWord get _currentWord => _words[_index];
 
@@ -76,6 +79,16 @@ class _QuizScreenState extends State<QuizScreen> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_tutor != null) return;
+    final sessionState = context.read<SessionState>();
+    final child = sessionState.childProfile;
+    if (child == null) return;
+    _tutor = VoiceChatController(api: sessionState.api, child: child);
+  }
+
   void _cancelHintCooldown() {
     _hintCooldownTimer?.cancel();
     _hintCooldownTimer = null;
@@ -89,10 +102,123 @@ class _QuizScreenState extends State<QuizScreen> {
       duration: Duration.zero,
     );
     _audioPlayer.dispose();
+    _tutor?.dispose();
     _answerController.dispose();
     _answerFocusNode.dispose();
     _cancelHintCooldown();
     super.dispose();
+  }
+
+  Future<void> _sendTutorContext() async {
+    final tutor = _tutor;
+    if (tutor == null || !tutor.connected) return;
+    await tutor.sendLessonContext(
+      quizSessionId: widget.session.id,
+      wordId: _currentWord.id,
+      word: _currentWord.spelling,
+      attempts: List<String>.from(_attempts),
+      hintLevel: _hintLevel,
+      visibleHints: List<String>.from(_visibleHints),
+    );
+  }
+
+  Future<void> _openTutorSheet() async {
+    final tutor = _tutor;
+    if (tutor == null) return;
+
+    await showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) {
+        return AnimatedBuilder(
+          animation: tutor,
+          builder: (context, _) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                8,
+                16,
+                16 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          tutor.connected ? 'Tutor connected' : 'Tutor disconnected',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      FilledButton(
+                        onPressed: () async {
+                          try {
+                            if (tutor.connected) {
+                              await tutor.disconnect();
+                            } else {
+                              await tutor.connectFreeMode();
+                              await _sendTutorContext();
+                            }
+                          } catch (e) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Tutor error: $e')),
+                            );
+                          }
+                        },
+                        child: Text(tutor.connected ? 'Disconnect' : 'Connect'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (tutor.connected)
+                    Row(
+                      children: [
+                        const Icon(Icons.mic, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(tutor.micEnabled ? 'Mic on' : 'Mic off')),
+                        Switch(
+                          value: tutor.micEnabled,
+                          onChanged: (v) async {
+                            try {
+                              await tutor.setMicEnabled(v);
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Mic error: $e')),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  if (tutor.connected && tutor.lastHeard.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text('Heard: ${tutor.lastHeard}'),
+                    ),
+                  const SizedBox(height: 12),
+                  if (!tutor.connected)
+                    const Text('Connect to let the tutor listen and help with spelling.'),
+                  if (tutor.connected)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: _sendTutorContext,
+                        icon: const Icon(Icons.sync),
+                        label: const Text('Send current word context'),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Offset? _fabOffset;
@@ -252,6 +378,9 @@ class _QuizScreenState extends State<QuizScreen> {
       _attempts.add(answer);
     });
 
+    // Keep tutor context in sync with attempts.
+    void _ = _sendTutorContext();
+
     try {
       final result = await api.submitQuizAttempt(
         sessionId: widget.session.id,
@@ -378,6 +507,8 @@ class _QuizScreenState extends State<QuizScreen> {
         // Backend returns the full hints array; keep UI in sync
         _visibleHints = hints;
       });
+
+      void _ = _sendTutorContext();
 
       // After each successful hint, enforce a short delay before the next.
       if (mounted) _startHintCooldown(seconds: 10);
@@ -533,6 +664,13 @@ class _QuizScreenState extends State<QuizScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Listen & type quiz'),
+        actions: [
+          IconButton(
+            tooltip: 'Tutor',
+            icon: const Icon(Icons.headset_mic),
+            onPressed: _openTutorSheet,
+          ),
+        ],
       ),
       body: GestureDetector(
         onTap: () => _answerFocusNode.unfocus(),

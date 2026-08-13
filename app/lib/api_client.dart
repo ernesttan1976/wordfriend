@@ -350,6 +350,18 @@ class ApiClient {
     return _handleJsonResponse(resp);
   }
 
+  // LiveKit
+
+  Future<LiveKitTokenResponse> getLiveKitToken({String identity = 'child_client'}) async {
+    final resp = await _client.post(
+      _uri('/livekit/token'),
+      headers: _headers(),
+      body: jsonEncode({'identity': identity}),
+    );
+    final json = await _handleJsonResponse(resp);
+    return LiveKitTokenResponse.fromJson(json);
+  }
+
   // TTS
 
   Future<List<int>> postBytes(

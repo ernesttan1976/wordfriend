@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { pool } from '../db';
 import { authMiddleware, AuthRequest } from '../auth/jwt';
 import { updateAfterAttempt } from '../spacedRepetition';
+import { normalizeForCompare } from '../spelling/normalize';
 import OpenAI from 'openai';
 import { config } from '../config';
 import { OPENAI_TTS_VOICES } from '../ttsVoices';
@@ -287,14 +288,6 @@ interface RecordAttemptBody {
   typedAnswer?: string;
   speechRecognized?: string;
   score?: number; // optional override, mainly for read_say
-}
-
-function normalizeForCompare(input: string): string {
-  return input
-    .trim()
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z]/g, '');
 }
 
 function levenshtein(a: string, b: string): number {

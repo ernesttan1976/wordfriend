@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../design/sketch_card.dart';
@@ -76,6 +77,18 @@ class _SignInScreenState extends State<SignInScreen> {
       setState(() {
         _hasGoogleSession = true;
       });
+    } on PlatformException catch (e) {
+      // google_sign_in uses PlatformException codes like `network_error`.
+      var message = 'Sign-in failed: $e';
+      final raw = '${e.code} ${e.message ?? ''}';
+      if (e.code == 'network_error' || raw.contains('ApiException: 7')) {
+        message =
+            'Google Sign-In network error. On Android emulator: use a Google Play system image, ensure Play Services is up to date, and verify the emulator has internet access.';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+      }
     } catch (e) {
       // `SessionState` will store API errors; this covers local/plugin errors too.
       if (mounted) {

@@ -1,0 +1,22 @@
+{
+  "cases": [
+    { "input": "Cat", "normalized": "cat" },
+    { "input": "  cAt  ", "normalized": "cat" },
+    { "input": "C-A-T", "normalized": "cat" },
+    { "input": "c a t", "normalized": "cat" },
+    { "input": "co-operate", "normalized": "cooperate" },
+    { "input": "re-enter", "normalized": "reenter" },
+    { "input": "can't", "normalized": "cant" },
+    { "input": "O'Neill", "normalized": "oneill" },
+    { "input": "ice cream", "normalized": "icecream" },
+    { "input": "E-mail", "normalized": "email" },
+    { "input": "naive", "normalized": "naive" },
+    { "input": "naive!", "normalized": "naive" },
+    { "input": "cafe", "normalized": "cafe" },
+    { "input": "CAF\u00C9", "normalized": "cafe" },
+    { "input": "fa\u00E7ade", "normalized": "facade" },
+    { "input": "123", "normalized": "" },
+    { "input": "a1b2c3", "normalized": "abc" },
+    { "input": "Sm\u00F6rg\u00E5sbord", "normalized": "smorgasbord" }
+  ]
+}

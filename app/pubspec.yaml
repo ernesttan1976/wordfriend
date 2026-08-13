@@ -17,6 +17,8 @@ dependencies:
   google_fonts: ^6.2.1
   sketchy_design_lang: ^0.4.0
   shared_preferences: ^2.2.3
+  diacritic: ^0.1.6
+  livekit_client: ^2.4.0
 
 dev_dependencies:
   flutter_test:
