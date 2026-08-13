@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'screens/child_profile_screen.dart';
 import 'screens/sign_in_screen.dart';
-import 'screens/word_lists_screen.dart';
+import 'screens/free_mode_screen.dart';
 import 'session_state.dart';
 import 'background_music_service.dart';
 
@@ -63,6 +63,7 @@ class _AuthGateState extends State<AuthGate> {
       return const ChildProfileScreen();
     }
 
-    return const WordListsScreen();
+    // Free mode is the primary entry point.
+    return const FreeModeScreen();
   }
 }

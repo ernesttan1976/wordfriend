@@ -12,6 +12,7 @@ class _MascotTestScreenState extends State<MascotTestScreen> {
   MonsterPose _pose = MonsterPose.idle;
   bool _facingRight = true;
   double _size = 160;
+  double _talkLevel = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +29,7 @@ class _MascotTestScreenState extends State<MascotTestScreen> {
                 size: _size,
                 pose: _pose,
                 facingRight: _facingRight,
+                talkLevel: _talkLevel,
               ),
             ),
           ),
@@ -80,6 +82,20 @@ class _MascotTestScreenState extends State<MascotTestScreen> {
                   onChanged: (value) {
                     setState(() {
                       _size = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                const Text('Talk level'),
+                Slider(
+                  min: 0,
+                  max: 1,
+                  divisions: 10,
+                  value: _talkLevel,
+                  label: _talkLevel.toStringAsFixed(1),
+                  onChanged: (value) {
+                    setState(() {
+                      _talkLevel = value;
                     });
                   },
                 ),

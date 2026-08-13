@@ -16,6 +16,6 @@ void main() {
     await tester.pumpWidget(const WordFriendApp());
 
     // By default there is no token, so the sign-in screen should be visible.
-    expect(find.text('Sign in to WordFriend'), findsOneWidget);
+    expect(find.text('Sign in with Google'), findsOneWidget);
   });
 }

@@ -20,12 +20,15 @@ class MonsterMascot extends StatefulWidget {
   final double size;
   final MonsterPose pose;
   final bool facingRight;
+  // 0..1. When >0, the mascot will flap its mouth a bit to look like it's talking.
+  final double talkLevel;
 
   const MonsterMascot({
     super.key,
     this.size = 120,
     this.pose = MonsterPose.idle,
     this.facingRight = true,
+    this.talkLevel = 0,
   });
 
   @override
@@ -346,6 +349,20 @@ class _MonsterMascotState extends State<MonsterMascot>
 
   String _mouthAsset() {
     final pose = _resolvedPose();
+
+    // Mouth flapping for "talking". Keep it subtle and don't override extreme poses.
+    if (widget.talkLevel > 0.05 &&
+        pose != MonsterPose.cry &&
+        pose != MonsterPose.cheer) {
+      // Increase flap rate a bit with talkLevel.
+      final rate = 10 + (widget.talkLevel.clamp(0, 1) * 8);
+      final t = _controller.value * 2 * pi;
+      final flap = sin(t * rate);
+      return flap > 0
+          ? 'assets/character/monster_mouth_open.png'
+          : 'assets/character/monster_mouth_neutral.png';
+    }
+
     switch (pose) {
       case MonsterPose.cry:
         return 'assets/character/monster_mouth_open.png';
