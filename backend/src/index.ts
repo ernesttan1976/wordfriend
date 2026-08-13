@@ -9,6 +9,7 @@ import childRoutes from './routes/child';
 import wordListsRoutes from './routes/wordLists';
 import quizRoutes from './routes/quiz';
 import ttsRoutes from './routes/tts';
+import livekitRoutes from './routes/livekit';
 
 const app = express();
 
@@ -50,14 +51,20 @@ app.use('/word-lists', wordListsRoutes);
 // Mount quiz routes under /quiz for clearer API structure
 app.use('/quiz', quizRoutes);
 app.use('/tts', ttsRoutes);
+app.use('/livekit', livekitRoutes);
 
 // Centralized error handler
-app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  void next;
+
+  const message = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+
   console.error('[ERROR]', {
     method: req.method,
     url: req.originalUrl,
-    message: err?.message,
-    stack: err?.stack,
+    message,
+    stack,
   });
 
   res.status(500).json({
