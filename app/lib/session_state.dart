@@ -64,7 +64,21 @@ class SessionState extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_tokenKey, _token!);
     } on ApiException catch (e) {
-      _setError('Login failed: HTTP ${e.statusCode}');
+      // Try to show a meaningful backend error (e.body is often JSON).
+      String message = 'Login failed: HTTP ${e.statusCode}';
+      final body = e.body.trim();
+      if (body.isNotEmpty) {
+        final m = RegExp(r'"error"\s*:\s*"([^"]+)"').firstMatch(body);
+        final d = RegExp(r'"details"\s*:\s*"([^"]+)"').firstMatch(body);
+        final errorText = m?.group(1);
+        final detailsText = d?.group(1);
+        if (detailsText != null && detailsText.isNotEmpty) {
+          message = 'Login failed: $detailsText';
+        } else if (errorText != null && errorText.isNotEmpty) {
+          message = 'Login failed: $errorText';
+        }
+      }
+      _setError(message);
       rethrow;
     } catch (e) {
       _setError('Login failed: $e');

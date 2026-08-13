@@ -54,6 +54,18 @@ router.post('/google', async (req: AuthRequest, res) => {
     });
   } catch (err) {
     console.error('Google auth failed', err);
+    const details =
+      err instanceof Error
+        ? err.message
+        : typeof err === 'string'
+          ? err
+          : 'Unknown error';
+
+    if (process.env.NODE_ENV !== 'production') {
+      res.status(401).json({ error: 'Invalid Google token', details });
+      return;
+    }
+
     res.status(401).json({ error: 'Invalid Google token' });
   }
 });
